@@ -40,6 +40,15 @@ class BuiltinToolsWindowTest {
     }
 
     @Test
+    void clientStopDelegatesToBridgeShutdown() throws Exception {
+        FakeBridge bridge = new FakeBridge();
+
+        assertEquals(Map.of("status", "stopping"), registry(bridge).call("mc.client.stop", Map.of()));
+        assertEquals(List.of("shutdown"), bridge.events);
+        assertThrows(Exception.class, () -> registry(new BasicBridge()).call("mc.client.stop", Map.of()));
+    }
+
+    @Test
     void capabilitiesReportBackgroundAndWindow() throws Exception {
         ToolRegistry registry = registry(new FakeBridge());
 
@@ -85,5 +94,6 @@ class BuiltinToolsWindowTest {
         public Map<String, Object> windowState() { return Map.of("visible", false); }
         public Map<String, Object> showWindow() { events.add("show"); return Map.of("status", "shown", "visible", true); }
         public Map<String, Object> hideWindow() { events.add("hide"); return Map.of("status", "hidden", "visible", false); }
+        public void shutdownClient() { events.add("shutdown"); }
     }
 }

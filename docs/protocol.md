@@ -23,6 +23,7 @@ Implemented tools:
 - Other mods can add tools through the [tool provider SPI](tool-provider-spi.md). `mc.debug.capabilities` lists them under `toolProviders`.
 
 - `mc.client.state`
+- `mc.client.stop`
 - `mc.player.state`
 - `mc.player.swing`
 - `mc.player.look`

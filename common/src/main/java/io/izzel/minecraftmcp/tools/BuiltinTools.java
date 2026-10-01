@@ -19,6 +19,7 @@ public final class BuiltinTools {
     private BuiltinTools() {}
     public static void register(ToolRegistry registry, MinecraftClientBridge bridge, ScenarioEngine scenarios) {
         registry.register(simple("mc.client.state", "Get Minecraft client state", args -> bridge.submit(() -> clientState(bridge)).get(10, TimeUnit.SECONDS)));
+        registry.register(simple("mc.client.stop", "Stop the client the normal way, like closing the window; responds before the game exits", args -> bridge.submit(() -> { bridge.shutdownClient(); return Map.of("status", "stopping"); }).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.player.state", "Get player state", args -> bridge.submit(() -> bridge.snapshot().toMap()).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.screen.current", "Get current screen", args -> Map.of("screen", bridge.submit(() -> bridge.snapshot().screen()).get(10, TimeUnit.SECONDS))));
         registry.register(simple("mc.ticks.wait", "Wait client ticks", args -> { long ticks = ((Number)args.getOrDefault("ticks", 1)).longValue(); bridge.waitTicks(ticks); return Map.of("waitedTicks", ticks); }));
