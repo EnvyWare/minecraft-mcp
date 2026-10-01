@@ -11,6 +11,7 @@ import io.izzel.minecraftmcp.mcp.ToolRegistry;
 import io.izzel.minecraftmcp.serverlink.ServerMcpPluginMessageHandler;
 import io.izzel.minecraftmcp.serverlink.ServerMcpProxy;
 import io.izzel.minecraftmcp.tools.BuiltinServerTools;
+import io.izzel.minecraftmcp.tools.ToolProviders;
 import io.izzel.minecraftmcp.input.KeyAliases;
 import io.izzel.minecraftmcp.packet.CommandSuggestionSync;
 import io.izzel.minecraftmcp.packet.PacketRecorderChannelInstaller;
@@ -102,6 +103,7 @@ public final class NeoForgeMinecraftMcpMod {
             server = MinecraftMcpBootstrap.start(bridge);
             ToolRegistry pluginRegistry = new ToolRegistry();
             BuiltinServerTools.register(pluginRegistry, bridge);
+            ToolProviders.registerServer(pluginRegistry, bridge);
             pluginHandler = new ServerMcpPluginMessageHandler(pluginRegistry);
             event.getServer().getPlayerList().getPlayers().forEach(player -> PacketDistributor.sendToPlayer(player, new NeoForgeStringPayload(NeoForgeStringPayload.HELLO, ServerMcpProxy.hello())));
             System.out.println("[Minecraft MCP] NeoForge dedicated MCP server started on port " + server.port());
@@ -324,7 +326,9 @@ public final class NeoForgeMinecraftMcpMod {
             var server = mc.getSingleplayerServer();
             if (server == null) throw new IllegalStateException("server MCP is not available");
             ToolRegistry registry = new ToolRegistry();
-            BuiltinServerTools.register(registry, new NeoForgeServerBridge(server));
+            NeoForgeServerBridge serverBridge = new NeoForgeServerBridge(server);
+            BuiltinServerTools.register(registry, serverBridge);
+            ToolProviders.registerServer(registry, serverBridge);
             return registry.call(tool, arguments);
         }
 

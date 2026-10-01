@@ -20,6 +20,8 @@ Implemented tools:
 
 - Screen, keyboard and entity tools are described in [input-and-entity-tools.md](input-and-entity-tools.md).
 
+- Other mods can add tools through the [tool provider SPI](tool-provider-spi.md). `mc.debug.capabilities` lists them under `toolProviders`.
+
 - `mc.client.state`
 - `mc.player.state`
 - `mc.player.swing`

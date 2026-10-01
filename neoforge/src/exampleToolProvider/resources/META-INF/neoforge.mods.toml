@@ -1,0 +1,16 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="minecraft_mcp_example_tool_provider"
+version="0.1.0"
+displayName="Minecraft MCP example tool provider"
+description="Test-only mod that contributes MCP tools through the ToolProvider SPI."
+
+[[dependencies.minecraft_mcp_example_tool_provider]]
+modId="minecraft_mcp"
+type="required"
+versionRange="[0,)"
+ordering="NONE"
+side="BOTH"

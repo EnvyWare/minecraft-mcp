@@ -10,6 +10,7 @@ import io.izzel.minecraftmcp.scenario.ScenarioReport;
 import io.izzel.minecraftmcp.scenario.ScenarioRunOptions;
 import io.izzel.minecraftmcp.tools.BuiltinTools;
 import io.izzel.minecraftmcp.tools.BuiltinServerTools;
+import io.izzel.minecraftmcp.tools.ToolProviders;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -22,6 +23,7 @@ public final class MinecraftMcpBootstrap {
         ToolRegistry registry = new ToolRegistry();
         ScenarioEngine scenarios = new ScenarioEngine(registry);
         BuiltinTools.register(registry, bridge, scenarios);
+        ToolProviders.registerClient(registry, bridge);
         LocalHttpMcpServer server = new LocalHttpMcpServer(config, new JsonRpcHandler(registry));
         server.start(bridge.gameDirectory(), bridge.loader(), bridge.minecraftVersion());
         if (!config.scenarioDir().isBlank()) {
@@ -48,6 +50,7 @@ public final class MinecraftMcpBootstrap {
         MinecraftMcpConfig config = MinecraftMcpConfig.load();
         ToolRegistry registry = new ToolRegistry();
         BuiltinServerTools.register(registry, bridge);
+        ToolProviders.registerServer(registry, bridge);
         LocalHttpMcpServer server = new LocalHttpMcpServer(config, new JsonRpcHandler(registry));
         server.start(bridge.gameDirectory(), bridge.loader(), bridge.minecraftVersion());
         return server;
