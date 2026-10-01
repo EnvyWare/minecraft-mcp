@@ -27,6 +27,8 @@ public final class ClientProcess {
         Files.createDirectories(log.getParent());
         ProcessBuilder builder = new ProcessBuilder(shell(command)).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.to(log.toFile()));
         if (cwd != null) builder.directory(cwd.toFile());
+        // some hosts (e.g. agent sandboxes) set this, which stops cmd from finding `gradlew.bat` in the launch directory
+        builder.environment().remove("NoDefaultCurrentDirectoryInExePath");
         builder.environment().putAll(extraEnv);
         Process started = builder.start();
         started.getOutputStream().close();
