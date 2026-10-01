@@ -3,11 +3,17 @@ package io.izzel.minecraftmcp;
 import io.izzel.minecraftmcp.bridge.MinecraftClientBridge;
 import io.izzel.minecraftmcp.bridge.MinecraftServerBridge;
 import io.izzel.minecraftmcp.config.MinecraftMcpConfig;
+import io.izzel.minecraftmcp.json.Json;
 import io.izzel.minecraftmcp.mcp.*;
 import io.izzel.minecraftmcp.scenario.ScenarioEngine;
+import io.izzel.minecraftmcp.scenario.ScenarioReport;
 import io.izzel.minecraftmcp.scenario.ScenarioRunOptions;
 import io.izzel.minecraftmcp.tools.BuiltinTools;
 import io.izzel.minecraftmcp.tools.BuiltinServerTools;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public final class MinecraftMcpBootstrap {
     private MinecraftMcpBootstrap() {}
@@ -21,7 +27,11 @@ public final class MinecraftMcpBootstrap {
         if (!config.scenarioDir().isBlank()) {
             new Thread(() -> {
                 try {
-                    scenarios.runBatch(config.scenarioDir(), ScenarioRunOptions.builder().loader(bridge.loader()).build());
+                    ScenarioReport report = scenarios.runBatch(config.scenarioDir(), ScenarioRunOptions.builder().loader(bridge.loader()).build());
+                    report.summaryLines().forEach(line -> System.out.println("[Minecraft MCP] scenario " + line));
+                    Path reportFile = bridge.gameDirectory().resolve("mcp/scenario-report.json");
+                    Files.createDirectories(reportFile.getParent());
+                    Files.writeString(reportFile, Json.stringify(report.toMap()), StandardCharsets.UTF_8);
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {

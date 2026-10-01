@@ -40,6 +40,17 @@ public final class ScenarioReport {
         return (int) scenarios.stream().filter(s -> status.equals(s.get("status"))).count();
     }
 
+    /** One line per scenario plus a totals line, for logs of unattended batch runs. */
+    public List<String> summaryLines() {
+        List<String> lines = new ArrayList<>();
+        for (Map<String,Object> scenario : scenarios) {
+            Object error = scenario.get("error");
+            lines.add(String.format(Locale.ROOT, "%-17s %s%s", scenario.get("status"), scenario.get("name"), error == null ? "" : " - " + error));
+        }
+        lines.add(String.format(Locale.ROOT, "passed=%d failed=%d skipped=%d expectedFailed=%d unexpectedPassed=%d", passed(), failed(), skipped(), expectedFailed(), unexpectedPassed()));
+        return lines;
+    }
+
     public Map<String,Object> toMap() {
         Map<String,Object> map = new LinkedHashMap<>();
         map.put("startedAt", startedAt.toString());
