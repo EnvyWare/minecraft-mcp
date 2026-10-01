@@ -11,6 +11,8 @@ Supported methods:
 
 Notifications (no `id`, method starting with `notifications/`, e.g. `notifications/initialized`) are accepted with HTTP 202 and an empty body.
 
+For MCP clients that only speak stdio, or that should outlive client restarts, use the [stdio bridge](bridge.md).
+
 Implemented tools:
 
 - `mc.world.join` supports normal world creation by default and accepts `preset`/`generator: "flat"` or `"superflat"` for superflat test worlds.

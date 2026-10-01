@@ -22,3 +22,5 @@ curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
   http://127.0.0.1:$PORT/mcp
 ```
+
+For MCP clients that connect over stdio, such as Claude Code, use the [stdio bridge](docs/bridge.md). It stays up while the game is restarted and can launch, stop and read the logs of the client itself.
