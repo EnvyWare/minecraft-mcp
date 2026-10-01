@@ -29,7 +29,9 @@ public final class LocalHttpMcpServer implements AutoCloseable {
         String auth = ex.getRequestHeaders().getFirst("Authorization");
         if (auth == null || !auth.equals("Bearer " + config.authToken())) { send(ex, 401, "unauthorized"); return; }
         String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        send(ex, 200, handler.handle(body));
+        String response = handler.handle(body);
+        if (response == null) { ex.sendResponseHeaders(202, -1); ex.close(); return; }
+        send(ex, 200, response);
     }
     private void send(HttpExchange ex, int status, String body) throws IOException { byte[] bytes = body.getBytes(StandardCharsets.UTF_8); ex.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8"); ex.sendResponseHeaders(status, bytes.length); try(OutputStream os=ex.getResponseBody()){ os.write(bytes); } }
     public int port() { return server == null ? -1 : server.getAddress().getPort(); }

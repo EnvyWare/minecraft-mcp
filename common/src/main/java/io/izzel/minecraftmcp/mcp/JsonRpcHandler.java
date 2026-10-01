@@ -4,9 +4,12 @@ import io.izzel.minecraftmcp.json.Json;
 import java.util.*;
 
 public final class JsonRpcHandler {
+    public static final String LATEST_PROTOCOL_VERSION = "2025-06-18";
+    public static final List<String> SUPPORTED_PROTOCOL_VERSIONS = List.of("2024-11-05", "2025-03-26", LATEST_PROTOCOL_VERSION);
     private final ToolRegistry registry;
     public JsonRpcHandler(ToolRegistry registry) { this.registry = registry; }
 
+    /** Returns the JSON-RPC response, or {@code null} for a notification, which gets no response. */
     @SuppressWarnings("unchecked")
     public String handle(String requestJson) {
         Object id = null;
@@ -14,10 +17,12 @@ public final class JsonRpcHandler {
             Map<String,Object> req = (Map<String,Object>) Json.parse(requestJson);
             id = req.get("id");
             String method = String.valueOf(req.get("method"));
+            if (!req.containsKey("id") && method.startsWith("notifications/")) return null;
             Map<String,Object> params = req.get("params") instanceof Map<?,?> m ? (Map<String,Object>) m : Map.of();
             Object result;
             switch (method) {
-                case "initialize" -> result = Map.of("protocolVersion", "2024-11-05", "serverInfo", Map.of("name", "minecraft-mcp", "version", "0.1.0"), "capabilities", Map.of("tools", Map.of(), "resources", Map.of()));
+                case "initialize" -> result = Map.of("protocolVersion", negotiateProtocolVersion(params.get("protocolVersion")), "serverInfo", Map.of("name", "minecraft-mcp", "version", "0.1.0"), "capabilities", Map.of("tools", Map.of(), "resources", Map.of()));
+                case "ping" -> result = Map.of();
                 case "tools/list" -> result = Map.of("tools", registry.listTools());
                 case "tools/call" -> result = callTool(params);
                 default -> throw new McpException(-32601, "Method not found: " + method);
@@ -28,6 +33,11 @@ public final class JsonRpcHandler {
         } catch (Exception e) {
             return error(id, -32603, e.getMessage() == null ? e.getClass().getName() : e.getMessage());
         }
+    }
+
+    /** The client's version if supported, otherwise the latest one this server speaks. */
+    public static String negotiateProtocolVersion(Object requested) {
+        return requested instanceof String version && SUPPORTED_PROTOCOL_VERSIONS.contains(version) ? version : LATEST_PROTOCOL_VERSION;
     }
 
     @SuppressWarnings("unchecked")

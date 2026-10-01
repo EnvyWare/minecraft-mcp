@@ -4,9 +4,12 @@ The first implementation uses MCP-compatible JSON-RPC 2.0 over localhost HTTP PO
 
 Supported methods:
 
-- `initialize`
+- `initialize` (echoes the client's `protocolVersion` if it is `2024-11-05`, `2025-03-26` or `2025-06-18`, otherwise answers `2025-06-18`)
+- `ping`
 - `tools/list`
 - `tools/call`
+
+Notifications (no `id`, method starting with `notifications/`, e.g. `notifications/initialized`) are accepted with HTTP 202 and an empty body.
 
 Implemented tools:
 
