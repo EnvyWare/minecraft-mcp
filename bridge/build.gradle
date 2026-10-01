@@ -1,3 +1,7 @@
+plugins {
+    id 'maven-publish'
+}
+
 // Plain Java launcher bridge: no Minecraft and no third-party runtime dependencies, so it runs with `java -jar`.
 base {
     archivesName = "${rootProject.property('mod_id')}-bridge"
@@ -25,3 +29,24 @@ jar {
     }
 }
 
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            // same coordinates scheme as the NeoForge jar
+            groupId = 'com.envyware.minecraftmcp'
+            artifactId = base.archivesName.get()
+            version = "${project.version}-envy.1"
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = 'EnvyWare'
+            url = 'https://maven.envyware.co.uk/releases'
+            credentials {
+                username = findProperty('envywareUsername')
+                password = findProperty('envywarePassword')
+            }
+        }
+    }
+}
