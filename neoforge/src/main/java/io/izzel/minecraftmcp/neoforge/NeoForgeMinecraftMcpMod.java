@@ -109,7 +109,7 @@ public final class NeoForgeMinecraftMcpMod {
     }
 
     private void onServerStopping(ServerStoppingEvent event) {
-        if (server != null) server.close();
+        if (server != null && event.getServer().isDedicatedServer()) server.close();
     }
     static final class NeoForgeBridge implements MinecraftClientBridge {
         static final ServerMcpProxy SERVER_PROXY = new ServerMcpProxy();
