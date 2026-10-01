@@ -1,6 +1,7 @@
 package io.izzel.minecraftmcp.neoforge;
 
 import io.izzel.minecraftmcp.MinecraftMcpBootstrap;
+import io.izzel.minecraftmcp.background.BackgroundWindow;
 import io.izzel.minecraftmcp.bridge.ClientSnapshot;
 import io.izzel.minecraftmcp.bridge.MinecraftClientBridge;
 import io.izzel.minecraftmcp.bridge.MinecraftServerBridge;
@@ -75,6 +76,7 @@ public final class NeoForgeMinecraftMcpMod {
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         if (FMLLoader.getDist().isClient()) {
+            NeoForgeBackground.register(modBus);
             try {
                 server = MinecraftMcpBootstrap.start(new NeoForgeBridge());
                 System.out.println("[Minecraft MCP] NeoForge MCP server started on port " + server.port());
@@ -119,6 +121,16 @@ public final class NeoForgeMinecraftMcpMod {
         public Path gameDirectory() { return FMLPaths.GAMEDIR.get(); }
         public boolean isOnClientThread() { return mc.isSameThread(); }
         public void execute(Runnable runnable) { mc.execute(runnable); }
+        public boolean background() { return BackgroundWindow.enabled(); }
+        public Map<String, Object> windowState() { return BackgroundWindow.get().state(); }
+        public Map<String, Object> showWindow() { return BackgroundWindow.get().show(); }
+        public Map<String, Object> hideWindow() { return BackgroundWindow.get().hide(); }
+        public Map<String, Object> capabilities() {
+            Map<String, Object> result = new java.util.LinkedHashMap<>(MinecraftClientBridge.super.capabilities());
+            result.put("windowControl", true);
+            result.put("earlyWindowControl", NeoForgeBackground.earlyWindowControl());
+            return result;
+        }
         public void pressKey(String key) {
             var keyMapping = InputConstants.getKey(KeyAliases.normalize(key));
             if (mc.screen != null) {

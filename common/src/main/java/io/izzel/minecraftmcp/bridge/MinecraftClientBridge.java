@@ -255,7 +255,26 @@ public interface MinecraftClientBridge {
     default void shutdownClient() {
         throw new UnsupportedOperationException("Client shutdown is not implemented by " + loader());
     }
+    default boolean background() {
+        return false;
+    }
+    default Map<String, Object> windowState() {
+        return Map.of("supported", false);
+    }
+    default Map<String, Object> showWindow() {
+        throw new UnsupportedOperationException("Window control is not implemented by " + loader());
+    }
+    default Map<String, Object> hideWindow() {
+        throw new UnsupportedOperationException("Window control is not implemented by " + loader());
+    }
     default Map<String,Object> capabilities() {
-        return Map.of("loader", loader(), "minecraftVersion", minecraftVersion(), "clientThreadScheduling", true, "headless", System.getProperty("minecraftMcp.headless", System.getenv().getOrDefault("MINECRAFT_MCP_HEADLESS", "false")));
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("loader", loader());
+        result.put("minecraftVersion", minecraftVersion());
+        result.put("clientThreadScheduling", true);
+        result.put("headless", System.getProperty("minecraftMcp.headless", System.getenv().getOrDefault("MINECRAFT_MCP_HEADLESS", "false")));
+        result.put("background", background());
+        result.put("windowControl", false);
+        return result;
     }
 }

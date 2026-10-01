@@ -16,12 +16,15 @@ import net.minecraft.world.phys.Vec3;
 public final class BuiltinTools {
     private BuiltinTools() {}
     public static void register(ToolRegistry registry, MinecraftClientBridge bridge, ScenarioEngine scenarios) {
-        registry.register(simple("mc.client.state", "Get Minecraft client state", args -> bridge.submit(() -> bridge.snapshot().toMap()).get(10, TimeUnit.SECONDS)));
+        registry.register(simple("mc.client.state", "Get Minecraft client state", args -> bridge.submit(() -> clientState(bridge)).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.player.state", "Get player state", args -> bridge.submit(() -> bridge.snapshot().toMap()).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.screen.current", "Get current screen", args -> Map.of("screen", bridge.submit(() -> bridge.snapshot().screen()).get(10, TimeUnit.SECONDS))));
         registry.register(simple("mc.ticks.wait", "Wait client ticks", args -> { long ticks = ((Number)args.getOrDefault("ticks", 1)).longValue(); bridge.waitTicks(ticks); return Map.of("waitedTicks", ticks); }));
-        registry.register(simple("mc.debug.capabilities", "Return MCP mod capabilities", args -> bridge.capabilities()));
-        registry.register(simple("mc.scenario.batch.run", "Run scenarios from a directory", args -> { ScenarioRunOptions.Builder options = ScenarioRunOptions.builder().loader(bridge.loader()); addTags(args.get("includeTags"), true, options); addTags(args.get("excludeTags"), false, options); return scenarios.runBatch(String.valueOf(args.getOrDefault("directory", "")), options.build()).toMap(); }));
+        registry.register(simple("mc.debug.capabilities", "Return MCP mod capabilities", args -> { Map<String,Object> capabilities = new java.util.LinkedHashMap<>(bridge.capabilities()); capabilities.put("window", bridge.submit(bridge::windowState).get(10, TimeUnit.SECONDS)); return capabilities; }));
+        registry.register(simple("mc.window.state", "Get game window state: visibility, focus, mouse grab and frame rate", args -> bridge.submit(bridge::windowState).get(10, TimeUnit.SECONDS)));
+        registry.register(simple("mc.window.show", "Show the game window without taking focus, e.g. so a human can look in", args -> bridge.submit(bridge::showWindow).get(10, TimeUnit.SECONDS)));
+        registry.register(simple("mc.window.hide", "Hide the game window and release the mouse; the game keeps running", args -> bridge.submit(bridge::hideWindow).get(10, TimeUnit.SECONDS)));
+        registry.register(simple("mc.scenario.batch.run", "Run scenarios from a directory", args -> { ScenarioRunOptions.Builder options = ScenarioRunOptions.builder().loader(bridge.loader()).background(bridge.background()); addTags(args.get("includeTags"), true, options); addTags(args.get("excludeTags"), false, options); return scenarios.runBatch(String.valueOf(args.getOrDefault("directory", "")), options.build()).toMap(); }));
         registry.register(simple("mc.scenario.report", "Return latest scenario report", args -> scenarios.latestReport().map(r -> r.toMap()).orElse(Map.of("status", "none"))));
         registry.register(simple("mc.keyboard.press", "Press a key by name", args -> { String key = String.valueOf(args.getOrDefault("key", "")); bridge.submit(() -> { bridge.pressKey(key); return null; }).get(10, TimeUnit.SECONDS); return Map.of("status", "pressed", "key", key); }));
         registry.register(simple("mc.keyboard.hold", "Hold a key by name for a number of ticks", args -> { String key = String.valueOf(args.getOrDefault("key", "")); long ticks = ((Number) args.getOrDefault("ticks", 1)).longValue(); bridge.submit(() -> { bridge.setKeyDown(key, true); return null; }).get(10, TimeUnit.SECONDS); bridge.waitTicks(ticks); bridge.submit(() -> { bridge.setKeyDown(key, false); return null; }).get(10, TimeUnit.SECONDS); return Map.of("status", "held", "key", key, "ticks", ticks); }));
@@ -70,6 +73,12 @@ public final class BuiltinTools {
         registry.register(simple("mc.packet.wait", "Wait until recorded packets matching a filter reach a required count", bridge::waitForPackets));
         registry.register(simple("mc.screenshot.take", "Take a client screenshot and save it under the game directory", args -> bridge.submit(() -> bridge.takeScreenshot(args)).get(30, TimeUnit.SECONDS)));
         registry.register(simple("mc.movement.waypoints", "Move the client player through one or more waypoints", args -> { List<Vec3> waypoints = parseWaypoints(args.get("waypoints")); boolean loop = Boolean.parseBoolean(String.valueOf(args.getOrDefault("loop", false))); int maxLoops = ((Number) args.getOrDefault("maxLoops", loop ? 0 : 1)).intValue(); double tolerance = ((Number) args.getOrDefault("tolerance", 0.75)).doubleValue(); long timeoutMs = ((Number) args.getOrDefault("timeoutMs", 30000)).longValue(); boolean sprint = Boolean.parseBoolean(String.valueOf(args.getOrDefault("sprint", false))); boolean sneak = Boolean.parseBoolean(String.valueOf(args.getOrDefault("sneak", false))); boolean controlView = Boolean.parseBoolean(String.valueOf(args.getOrDefault("controlView", true))); return bridge.moveWaypoints(waypoints, loop, maxLoops, tolerance, timeoutMs, sprint, sneak, controlView); }));
+    }
+    private static Map<String,Object> clientState(MinecraftClientBridge bridge) {
+        Map<String,Object> state = bridge.snapshot().toMap();
+        state.put("background", bridge.background());
+        state.put("window", bridge.windowState());
+        return state;
     }
     private static void addTags(Object value, boolean include, ScenarioRunOptions.Builder options) {
         if (value instanceof Iterable<?> iterable) {

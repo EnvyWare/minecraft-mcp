@@ -1,0 +1,1 @@
+{"name":"window_state","tags":["window","client"],"requires":{"loaders":["neoforge"]},"steps":[{"id":"caps","tool":"mc.debug.capabilities","args":{},"expect":{"result.windowControl":true}},{"id":"window","tool":"mc.window.state","args":{}}]}

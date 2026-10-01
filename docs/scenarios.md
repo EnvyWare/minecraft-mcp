@@ -46,6 +46,7 @@ Supported scenario metadata:
 
 - `tags`: used by `includeTags` / `excludeTags` in `mc.scenario.batch.run`.
 - `requires.loaders`: skips scenarios that do not match the active loader.
+- `requires.background`: `true` or `false`; skips scenarios that need (or must not have) background mode. See [headless.md](headless.md#background-mode-windowsmacoslinux-desktop).
 - `expected: "fail"`: expected failures are reported as `expected_failed` and do not increase `failed`.
 
 Run all scenarios through MCP:
@@ -67,5 +68,6 @@ Current scenario groups:
 - `assert/`: examples using `expect` assertions.
 - `metadata/`: loader requirements, tags, and expected-failure behavior.
 - `world/`: full-client scenarios that create/join a singleplayer test world, inspect player/world/inventory/block state, exercise input in-world, and leave back to title.
+- `window/`: window state, plus background-mode checks (hidden, show without focus, world keeps running unfocused).
 
 World scenarios require a real client run and are intended for `includeTags:["world"]` or `includeTags:["full-client"]`. They are not part of quick smoke-only validation.

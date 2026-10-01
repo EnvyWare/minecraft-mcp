@@ -14,6 +14,8 @@ Implemented tools:
 
 - `mc.client.state` returns both `inWorld` and `rawInWorld`. `rawInWorld` means the underlying client level/player exists; `inWorld` means the client is in a playable world state with no loading/GUI screen blocking normal controls.
 
+- `mc.client.state` and `mc.debug.capabilities` also report `background` (whether background mode is on) and `window` (visibility, focus, mouse grab, frame rate). `mc.debug.capabilities` reports `windowControl` (whether `mc.window.*` is supported) and, on NeoForge, `earlyWindowControl`. See [headless.md](headless.md#background-mode-windowsmacoslinux-desktop).
+
 - `mc.client.state`
 - `mc.player.state`
 - `mc.player.swing`
@@ -49,5 +51,8 @@ Implemented tools:
 - `mc.packet.dump`
 - `mc.packet.wait`
 - `mc.debug.capabilities`
+- `mc.window.state`
+- `mc.window.show`
+- `mc.window.hide`
 - `mc.scenario.batch.run`
 - `mc.scenario.report`

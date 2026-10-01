@@ -24,6 +24,9 @@ runs {
         systemProperty 'minecraftMcp.port', System.getProperty('minecraftMcp.port', '0')
         systemProperty 'minecraftMcp.batchExit', System.getProperty('minecraftMcp.batchExit', 'false')
         systemProperty 'minecraftMcp.scenarioDir', System.getProperty('minecraftMcp.scenarioDir', '')
+        ['minecraftMcp.background', 'minecraftMcp.backgroundMaxFps', 'minecraftMcp.backgroundMute'].each { key ->
+            if (System.getProperty(key) != null) systemProperty key, System.getProperty(key)
+        }
     }
     server {
         modSource project.sourceSets.main

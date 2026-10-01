@@ -27,7 +27,7 @@ public final class MinecraftMcpBootstrap {
         if (!config.scenarioDir().isBlank()) {
             new Thread(() -> {
                 try {
-                    ScenarioReport report = scenarios.runBatch(config.scenarioDir(), ScenarioRunOptions.builder().loader(bridge.loader()).build());
+                    ScenarioReport report = scenarios.runBatch(config.scenarioDir(), ScenarioRunOptions.builder().loader(bridge.loader()).background(bridge.background()).build());
                     report.summaryLines().forEach(line -> System.out.println("[Minecraft MCP] scenario " + line));
                     Path reportFile = bridge.gameDirectory().resolve("mcp/scenario-report.json");
                     Files.createDirectories(reportFile.getParent());

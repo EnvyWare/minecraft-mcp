@@ -22,3 +22,6 @@ type="required"
 versionRange="[${minecraft_version}]"
 ordering="NONE"
 side="BOTH"
+
+[[mixins]]
+config="minecraft_mcp.mixins.json"
