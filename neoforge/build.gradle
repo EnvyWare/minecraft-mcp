@@ -1,5 +1,6 @@
 plugins {
     id 'net.neoforged.gradle.userdev'
+    id 'maven-publish'
 }
 
 base {
@@ -75,5 +76,28 @@ processResources {
                 mod_description: rootProject.property('mod_description'),
                 mod_author: rootProject.property('mod_author'),
                 mod_license: rootProject.property('mod_license')
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            // common is compiled into this jar and has no runtime dependencies, so publish the jars without a dependency list
+            groupId = 'com.envyware.minecraftmcp'
+            artifactId = base.archivesName.get()
+            version = "${project.version}-envy.1"
+            artifact jar
+            artifact sourcesJar
+        }
+    }
+    repositories {
+        maven {
+            name = 'EnvyWare'
+            url = 'https://maven.envyware.co.uk/releases'
+            credentials {
+                username = findProperty('envywareUsername')
+                password = findProperty('envywarePassword')
+            }
+        }
     }
 }
