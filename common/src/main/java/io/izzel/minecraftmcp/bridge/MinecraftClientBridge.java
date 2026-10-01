@@ -4,6 +4,8 @@ import io.izzel.minecraftmcp.condition.ConditionContext;
 import io.izzel.minecraftmcp.condition.ConditionEvaluator;
 import io.izzel.minecraftmcp.condition.ConditionExpression;
 import io.izzel.minecraftmcp.condition.ConditionParser;
+import io.izzel.minecraftmcp.entity.EntitySelector;
+import io.izzel.minecraftmcp.input.KeyChord;
 import io.izzel.minecraftmcp.packet.PacketFilter;
 import io.izzel.minecraftmcp.packet.PacketRecorder;
 import io.izzel.minecraftmcp.schematic.SchematicPathResolver;
@@ -39,6 +41,18 @@ public interface MinecraftClientBridge {
     }
     default void pressKey(String key) {
         throw new UnsupportedOperationException("Key input is not implemented by " + loader());
+    }
+    /**
+     * Press and release a key while holding the chord's keys. With {@code viaKeyboardHandler} the events go through the
+     * client's keyboard handler like real input (global keys such as F3 combos and Escape); otherwise to the screen or
+     * key mappings like {@link #pressKey(String)}. Returns extra result fields.
+     */
+    default Map<String, Object> pressKey(String key, KeyChord chord, boolean viaKeyboardHandler) {
+        if (chord.isEmpty() && !viaKeyboardHandler) {
+            pressKey(key);
+            return Map.of();
+        }
+        throw new UnsupportedOperationException("Key modifiers and keyboard handler routing are not implemented by " + loader());
     }
     default void setKeyDown(String key, boolean down) {
         throw new UnsupportedOperationException("Key input is not implemented by " + loader());
@@ -106,6 +120,21 @@ public interface MinecraftClientBridge {
     }
     default Map<String, Object> clickWidget(String id, String message, int button) {
         throw new UnsupportedOperationException("Screen widget clicking is not implemented by " + loader());
+    }
+    default Map<String, Object> dragScreen(double fromX, double fromY, double toX, double toY, int button, int steps) {
+        throw new UnsupportedOperationException("Screen dragging is not implemented by " + loader());
+    }
+    default Map<String, Object> scrollScreen(double x, double y, double horizontal, double vertical) {
+        throw new UnsupportedOperationException("Screen scrolling is not implemented by " + loader());
+    }
+    default Map<String, Object> listEntities(String type, double radius, int limit, boolean includeSelf) {
+        throw new UnsupportedOperationException("Entity listing is not implemented by " + loader());
+    }
+    default FutureResult<Map<String, Object>> lookAtEntity(EntitySelector.Query query) {
+        throw new UnsupportedOperationException("Look-at-entity is not implemented by " + loader());
+    }
+    default FutureResult<Map<String, Object>> interactEntity(EntitySelector.Query query, String action, String hand, boolean look) {
+        throw new UnsupportedOperationException("Entity interaction is not implemented by " + loader());
     }
     default Map<String, Object> disconnectState() {
         throw new UnsupportedOperationException("Disconnect state is not implemented by " + loader());

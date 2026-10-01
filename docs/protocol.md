@@ -16,11 +16,16 @@ Implemented tools:
 
 - `mc.client.state` and `mc.debug.capabilities` also report `background` (whether background mode is on) and `window` (visibility, focus, mouse grab, frame rate). `mc.debug.capabilities` reports `windowControl` (whether `mc.window.*` is supported) and, on NeoForge, `earlyWindowControl`. See [headless.md](headless.md#background-mode-windowsmacoslinux-desktop).
 
+- Screen, keyboard and entity tools are described in [input-and-entity-tools.md](input-and-entity-tools.md).
+
 - `mc.client.state`
 - `mc.player.state`
 - `mc.player.swing`
 - `mc.player.look`
 - `mc.player.look_at`
+- `mc.player.look_at_entity`
+- `mc.entity.list`
+- `mc.entity.interact`
 - `mc.player.use_item`
 - `mc.player.attack.block`
 - `mc.player.destroy.block`
@@ -43,6 +48,8 @@ Implemented tools:
 - `mc.ticks.wait`
 - `mc.keyboard.press`
 - `mc.keyboard.hold`
+- `mc.screen.mouse.drag`
+- `mc.screen.scroll`
 - `mc.screenshot.take`
 - `mc.packet.recording.start`
 - `mc.packet.recording.stop`

@@ -1,0 +1,1 @@
+{"name":"key_press_keyboard_handler","tags":["input","keyboard"],"requires":{"loaders":["neoforge"]},"steps":[{"id":"tab","tool":"mc.keyboard.press","args":{"key":"TAB","route":"keyboard_handler"},"expect":{"result.status":"pressed","result.route":"keyboard_handler"}}]}

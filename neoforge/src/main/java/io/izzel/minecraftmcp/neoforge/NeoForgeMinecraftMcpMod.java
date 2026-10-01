@@ -132,14 +132,10 @@ public final class NeoForgeMinecraftMcpMod {
             return result;
         }
         public void pressKey(String key) {
-            var keyMapping = InputConstants.getKey(KeyAliases.normalize(key));
-            if (mc.screen != null) {
-                mc.screen.keyPressed(keyMapping.getValue(), 0, 0);
-            } else {
-                KeyMapping.set(keyMapping, true);
-                KeyMapping.click(keyMapping);
-                KeyMapping.set(keyMapping, false);
-            }
+            NeoForgeInput.pressKey(mc, key);
+        }
+        public Map<String, Object> pressKey(String key, io.izzel.minecraftmcp.input.KeyChord chord, boolean viaKeyboardHandler) {
+            return NeoForgeInput.pressKey(mc, key, chord, viaKeyboardHandler);
         }
         public void setKeyDown(String key, boolean down) {
             KeyMapping.set(InputConstants.getKey(KeyAliases.normalize(key)), down);
@@ -365,27 +361,7 @@ public final class NeoForgeMinecraftMcpMod {
             result.put("narration", screen.getNarrationMessage().getString());
             result.put("width", screen.width);
             result.put("height", screen.height);
-            java.util.List<java.util.Map<String, Object>> children = new java.util.ArrayList<>();
-            int index = 0;
-            for (net.minecraft.client.gui.components.events.GuiEventListener child : screen.children()) {
-                java.util.Map<String, Object> entry = new java.util.LinkedHashMap<>();
-                int widgetIndex = index++;
-                String widgetId = "widget-" + widgetIndex;
-                entry.put("index", widgetIndex);
-                entry.put("id", widgetId);
-                entry.put("class", child.getClass().getName());
-                if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget) {
-                    entry.put("x", widget.getX());
-                    entry.put("y", widget.getY());
-                    entry.put("width", widget.getWidth());
-                    entry.put("height", widget.getHeight());
-                    entry.put("message", widget.getMessage().getString());
-                    entry.put("active", widget.active);
-                    entry.put("visible", widget.visible);
-                }
-                children.add(entry);
-            }
-            result.put("children", children);
+            result.put("children", NeoForgeScreenTree.describe(screen));
             return result;
         }
         public Map<String, Object> typeText(String text, boolean submit) {
@@ -409,30 +385,61 @@ public final class NeoForgeMinecraftMcpMod {
             Screen screen = mc.screen;
             if (screen == null) return Map.of("status", "no_screen", "x", x, "y", y, "button", button);
             boolean handled = screen.mouseClicked(x, y, button);
-            return Map.of("status", "clicked", "handled", handled, "x", x, "y", y, "button", button, "screen", screen.getClass().getName());
+            boolean released = NeoForgeInput.release(mc, x, y, button);
+            return Map.of("status", "clicked", "handled", handled, "released", released, "x", x, "y", y, "button", button, "screen", screen.getClass().getName());
         }
         public Map<String, Object> clickWidget(String id, String message, int button) {
             Screen screen = mc.screen;
             if (screen == null) return Map.of("status", "no_screen", "id", id == null ? "" : id, "message", message == null ? "" : message);
             String wantedId = id == null ? "" : id.trim();
             String wantedMessage = message == null ? "" : message;
-            int index = 0;
-            for (net.minecraft.client.gui.components.events.GuiEventListener child : screen.children()) {
-                String widgetId = "widget-" + index;
-                if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget) {
-                    String widgetMessage = widget.getMessage().getString();
-                    boolean idMatches = !wantedId.isBlank() && wantedId.equals(widgetId);
-                    boolean messageMatches = wantedId.isBlank() && !wantedMessage.isBlank() && wantedMessage.equals(widgetMessage);
-                    if (idMatches || messageMatches) {
-                        double x = widget.getX() + widget.getWidth() / 2.0;
-                        double y = widget.getY() + widget.getHeight() / 2.0;
-                        boolean handled = screen.mouseClicked(x, y, button);
-                        return Map.of("status", "clicked", "handled", handled, "id", widgetId, "index", index, "message", widgetMessage, "x", x, "y", y, "button", button, "screen", screen.getClass().getName());
-                    }
-                }
-                index++;
+            List<NeoForgeScreenTree.Node> nodes = NeoForgeScreenTree.flatten(screen);
+            java.util.Optional<NeoForgeScreenTree.Node> match;
+            if (!wantedId.isBlank()) {
+                List<Integer> path = io.izzel.minecraftmcp.screen.WidgetPath.parse(wantedId);
+                match = nodes.stream().filter(node -> node.path().equals(path) && node.hasBounds()).findFirst();
+            } else if (!wantedMessage.isBlank()) {
+                // top-level widgets first, matching the historical behaviour, then nested widgets and list rows
+                match = nodes.stream().filter(node -> node.path().size() == 1 && node.listener() instanceof net.minecraft.client.gui.components.AbstractWidget && wantedMessage.equals(node.message())).findFirst()
+                        .or(() -> nodes.stream().filter(node -> node.path().size() > 1 && node.hasBounds() && wantedMessage.equals(node.message())).findFirst());
+            } else {
+                match = java.util.Optional.empty();
             }
-            return Map.of("status", "not_found", "id", wantedId, "message", wantedMessage, "screen", screen.getClass().getName());
+            if (match.isEmpty()) return Map.of("status", "not_found", "id", wantedId, "message", wantedMessage, "screen", screen.getClass().getName());
+            NeoForgeScreenTree.Node node = match.get();
+            double x = node.centerX();
+            double y = node.centerY();
+            java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+            if (Boolean.FALSE.equals(node.inView())) {
+                result.put("status", "out_of_view");
+            } else {
+                result.put("status", "clicked");
+                result.put("handled", screen.mouseClicked(x, y, button));
+                result.put("released", NeoForgeInput.release(mc, x, y, button));
+            }
+            result.put("id", node.id());
+            result.put("index", node.path().get(node.path().size() - 1));
+            result.put("message", node.message() == null ? "" : node.message());
+            result.put("x", x);
+            result.put("y", y);
+            result.put("button", button);
+            result.put("screen", screen.getClass().getName());
+            return result;
+        }
+        public Map<String, Object> dragScreen(double fromX, double fromY, double toX, double toY, int button, int steps) {
+            return NeoForgeInput.drag(mc, fromX, fromY, toX, toY, button, steps);
+        }
+        public Map<String, Object> scrollScreen(double x, double y, double horizontal, double vertical) {
+            return NeoForgeInput.scroll(mc, x, y, horizontal, vertical);
+        }
+        public Map<String, Object> listEntities(String type, double radius, int limit, boolean includeSelf) {
+            return NeoForgeEntities.list(mc, type, radius, limit, includeSelf);
+        }
+        public FutureResult<Map<String, Object>> lookAtEntity(io.izzel.minecraftmcp.entity.EntitySelector.Query query) {
+            return action(() -> NeoForgeEntities.lookAt(mc, query));
+        }
+        public FutureResult<Map<String, Object>> interactEntity(io.izzel.minecraftmcp.entity.EntitySelector.Query query, String action, String hand, boolean look) {
+            return action(() -> NeoForgeEntities.interact(mc, query, action, hand, look));
         }
         public Map<String, Object> disconnectState() {
             Screen screen = mc.screen;

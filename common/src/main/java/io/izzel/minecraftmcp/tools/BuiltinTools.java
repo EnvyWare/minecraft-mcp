@@ -1,6 +1,8 @@
 package io.izzel.minecraftmcp.tools;
 
 import io.izzel.minecraftmcp.bridge.MinecraftClientBridge;
+import io.izzel.minecraftmcp.entity.EntitySelector;
+import io.izzel.minecraftmcp.input.KeyChord;
 import io.izzel.minecraftmcp.mcp.*;
 import io.izzel.minecraftmcp.scenario.ScenarioEngine;
 import io.izzel.minecraftmcp.scenario.ScenarioRunOptions;
@@ -26,11 +28,14 @@ public final class BuiltinTools {
         registry.register(simple("mc.window.hide", "Hide the game window and release the mouse; the game keeps running", args -> bridge.submit(bridge::hideWindow).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.scenario.batch.run", "Run scenarios from a directory", args -> { ScenarioRunOptions.Builder options = ScenarioRunOptions.builder().loader(bridge.loader()).background(bridge.background()); addTags(args.get("includeTags"), true, options); addTags(args.get("excludeTags"), false, options); return scenarios.runBatch(String.valueOf(args.getOrDefault("directory", "")), options.build()).toMap(); }));
         registry.register(simple("mc.scenario.report", "Return latest scenario report", args -> scenarios.latestReport().map(r -> r.toMap()).orElse(Map.of("status", "none"))));
-        registry.register(simple("mc.keyboard.press", "Press a key by name", args -> { String key = String.valueOf(args.getOrDefault("key", "")); bridge.submit(() -> { bridge.pressKey(key); return null; }).get(10, TimeUnit.SECONDS); return Map.of("status", "pressed", "key", key); }));
+        registry.register(simple("mc.keyboard.press", "Press and release a key by name, optionally with modifiers (shift/ctrl/alt/super or other held keys) and route=keyboard_handler to behave exactly like real input", args -> pressKey(bridge, args)));
         registry.register(simple("mc.keyboard.hold", "Hold a key by name for a number of ticks", args -> { String key = String.valueOf(args.getOrDefault("key", "")); long ticks = ((Number) args.getOrDefault("ticks", 1)).longValue(); bridge.submit(() -> { bridge.setKeyDown(key, true); return null; }).get(10, TimeUnit.SECONDS); bridge.waitTicks(ticks); bridge.submit(() -> { bridge.setKeyDown(key, false); return null; }).get(10, TimeUnit.SECONDS); return Map.of("status", "held", "key", key, "ticks", ticks); }));
         registry.register(simple("mc.player.swing", "Swing player hand and send the normal client interaction packet", args -> { String hand = String.valueOf(args.getOrDefault("hand", "main")); bridge.submit(() -> { bridge.swing(hand); return null; }).get(10, TimeUnit.SECONDS); return Map.of("status", "swung", "hand", hand); }));
         registry.register(simple("mc.player.look", "Set player yaw and pitch", args -> { float yaw = ((Number) args.getOrDefault("yaw", 0)).floatValue(); float pitch = ((Number) args.getOrDefault("pitch", 0)).floatValue(); return bridge.look(yaw, pitch); }));
         registry.register(simple("mc.player.look_at", "Rotate player to look at a world position", args -> { double x = number(args.get("x"), "x"); double y = number(args.get("y"), "y"); double z = number(args.get("z"), "z"); return bridge.lookAt(x, y, z); }));
+        registry.register(simple("mc.player.look_at_entity", "Rotate player to look at an entity by id, uuid, or the nearest of a type within radius", args -> bridge.lookAtEntity(EntitySelector.Query.from(args))));
+        registry.register(simple("mc.entity.list", "List nearby entities with optional type and radius filters, nearest first", args -> { String type = args.get("type") == null ? null : String.valueOf(args.get("type")); double radius = args.get("radius") instanceof Number n ? n.doubleValue() : EntitySelector.DEFAULT_RADIUS; int limit = args.get("limit") instanceof Number n ? n.intValue() : 100; boolean includeSelf = Boolean.parseBoolean(String.valueOf(args.getOrDefault("includeSelf", false))); return bridge.submit(() -> bridge.listEntities(type, radius, limit, includeSelf)).get(10, TimeUnit.SECONDS); }));
+        registry.register(simple("mc.entity.interact", "Use (right-click) or attack an entity through the normal client interaction path", args -> { EntitySelector.Query query = EntitySelector.Query.from(args); String action = entityAction(args.getOrDefault("action", "use")); String hand = normalizeHand(args.getOrDefault("hand", "main")); boolean look = Boolean.parseBoolean(String.valueOf(args.getOrDefault("look", true))); return bridge.interactEntity(query, action, hand, look); }));
         registry.register(simple("mc.player.use_item", "Use the currently held item with main hand or offhand", args -> { String hand = normalizeHand(args.getOrDefault("hand", "main")); return bridge.useItem(hand); }));
         registry.register(simple("mc.player.attack.block", "Attack or start breaking a block through the normal client interaction path", args -> { int x = ((Number) args.getOrDefault("x", 0)).intValue(); int y = ((Number) args.getOrDefault("y", 0)).intValue(); int z = ((Number) args.getOrDefault("z", 0)).intValue(); String face = normalizeFace(args.getOrDefault("face", "up")); return bridge.attackBlock(x, y, z, face); }));
         registry.register(simple("mc.player.destroy.block", "Keep breaking a block through the normal client interaction path until it is gone or timeout expires", args -> { int x = ((Number) args.getOrDefault("x", 0)).intValue(); int y = ((Number) args.getOrDefault("y", 0)).intValue(); int z = ((Number) args.getOrDefault("z", 0)).intValue(); String face = normalizeFace(args.getOrDefault("face", "up")); return bridge.destroyBlock(x, y, z, face); }));
@@ -47,6 +52,8 @@ public final class BuiltinTools {
         registry.register(simple("mc.screen.text.type", "Type text into the current screen and optionally submit with Enter", args -> { String text = String.valueOf(args.getOrDefault("text", "")); boolean submit = Boolean.parseBoolean(String.valueOf(args.getOrDefault("submit", false))); return bridge.submit(() -> bridge.typeText(text, submit)).get(10, TimeUnit.SECONDS); }));
         registry.register(simple("mc.screen.click.at", "Click the current screen at absolute GUI coordinates", args -> { double x = ((Number) args.getOrDefault("x", 0)).doubleValue(); double y = ((Number) args.getOrDefault("y", 0)).doubleValue(); int button = ((Number) args.getOrDefault("button", 0)).intValue(); return bridge.submit(() -> bridge.clickScreen(x, y, button)).get(10, TimeUnit.SECONDS); }));
         registry.register(simple("mc.screen.widget.click", "Click a widget from mc.screen.state by id, or by exact message text", args -> { String id = String.valueOf(args.getOrDefault("id", "")); String message = String.valueOf(args.getOrDefault("message", args.getOrDefault("text", ""))); int button = ((Number) args.getOrDefault("button", 0)).intValue(); return bridge.submit(() -> bridge.clickWidget(id, message, button)).get(10, TimeUnit.SECONDS); }));
+        registry.register(simple("mc.screen.mouse.drag", "Drag on the current screen: press at (fromX,fromY), move in steps to (toX,toY), release", args -> { double fromX = number(args.get("fromX"), "fromX"); double fromY = number(args.get("fromY"), "fromY"); double toX = number(args.get("toX"), "toX"); double toY = number(args.get("toY"), "toY"); int button = ((Number) args.getOrDefault("button", 0)).intValue(); int steps = Math.max(1, ((Number) args.getOrDefault("steps", 5)).intValue()); return bridge.submit(() -> bridge.dragScreen(fromX, fromY, toX, toY, button, steps)).get(10, TimeUnit.SECONDS); }));
+        registry.register(simple("mc.screen.scroll", "Scroll the mouse wheel over the current screen at GUI coordinates; positive amount scrolls up", args -> { double x = number(args.get("x"), "x"); double y = number(args.get("y"), "y"); double amount = ((Number) args.getOrDefault("amount", 1)).doubleValue(); double horizontal = ((Number) args.getOrDefault("horizontal", 0)).doubleValue(); return bridge.submit(() -> bridge.scrollScreen(x, y, horizontal, amount)).get(10, TimeUnit.SECONDS); }));
         registry.register(simple("mc.server.disconnect.state", "Return disconnect screen/message state if the client is disconnected", args -> bridge.submit(bridge::disconnectState).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.server.disconnect.wait", "Wait for a disconnect screen, optionally matching messageContains", args -> { String needle = String.valueOf(args.getOrDefault("messageContains", "")); long timeoutMs = ((Number) args.getOrDefault("timeoutMs", 30000)).longValue(); long deadline = System.currentTimeMillis() + Math.max(0, timeoutMs); Map<String,Object> state; do { state = bridge.submit(bridge::disconnectState).get(10, TimeUnit.SECONDS); Object msg = state.get("message"); if (Boolean.TRUE.equals(state.get("disconnected")) && (needle.isBlank() || (msg != null && String.valueOf(msg).contains(needle)))) return state; bridge.waitTicks(1); } while (System.currentTimeMillis() < deadline); state = bridge.submit(bridge::disconnectState).get(10, TimeUnit.SECONDS); java.util.Map<String,Object> result = new java.util.LinkedHashMap<>(state); result.put("matched", false); result.put("messageContains", needle); return result; }));
         registry.register(simple("mc.block.interact", "Right-click a block through the normal client interaction path", args -> { int x = ((Number) args.getOrDefault("x", 0)).intValue(); int y = ((Number) args.getOrDefault("y", 0)).intValue(); int z = ((Number) args.getOrDefault("z", 0)).intValue(); String face = String.valueOf(args.getOrDefault("face", "up")); String hand = String.valueOf(args.getOrDefault("hand", "main")); return bridge.submit(() -> bridge.interactBlock(x, y, z, face, hand)).get(10, TimeUnit.SECONDS); }));
@@ -73,6 +80,30 @@ public final class BuiltinTools {
         registry.register(simple("mc.packet.wait", "Wait until recorded packets matching a filter reach a required count", bridge::waitForPackets));
         registry.register(simple("mc.screenshot.take", "Take a client screenshot and save it under the game directory", args -> bridge.submit(() -> bridge.takeScreenshot(args)).get(30, TimeUnit.SECONDS)));
         registry.register(simple("mc.movement.waypoints", "Move the client player through one or more waypoints", args -> { List<Vec3> waypoints = parseWaypoints(args.get("waypoints")); boolean loop = Boolean.parseBoolean(String.valueOf(args.getOrDefault("loop", false))); int maxLoops = ((Number) args.getOrDefault("maxLoops", loop ? 0 : 1)).intValue(); double tolerance = ((Number) args.getOrDefault("tolerance", 0.75)).doubleValue(); long timeoutMs = ((Number) args.getOrDefault("timeoutMs", 30000)).longValue(); boolean sprint = Boolean.parseBoolean(String.valueOf(args.getOrDefault("sprint", false))); boolean sneak = Boolean.parseBoolean(String.valueOf(args.getOrDefault("sneak", false))); boolean controlView = Boolean.parseBoolean(String.valueOf(args.getOrDefault("controlView", true))); return bridge.moveWaypoints(waypoints, loop, maxLoops, tolerance, timeoutMs, sprint, sneak, controlView); }));
+    }
+    private static Map<String,Object> pressKey(MinecraftClientBridge bridge, Map<String,Object> args) throws Exception {
+        String key = String.valueOf(args.getOrDefault("key", ""));
+        KeyChord chord = KeyChord.parse(args.get("modifiers"));
+        String route = String.valueOf(args.getOrDefault("route", "default")).trim().toLowerCase(Locale.ROOT);
+        if (!Set.of("default", "keyboard_handler").contains(route)) throw new IllegalArgumentException("Unsupported route: " + route + " (expected default or keyboard_handler)");
+        boolean viaKeyboardHandler = route.equals("keyboard_handler");
+        if (chord.isEmpty() && !viaKeyboardHandler) {
+            bridge.submit(() -> { bridge.pressKey(key); return null; }).get(10, TimeUnit.SECONDS);
+            return Map.of("status", "pressed", "key", key);
+        }
+        Map<String,Object> extra = bridge.submit(() -> bridge.pressKey(key, chord, viaKeyboardHandler)).get(10, TimeUnit.SECONDS);
+        Map<String,Object> result = new java.util.LinkedHashMap<>();
+        result.put("status", "pressed");
+        result.put("key", key);
+        result.put("modifiers", chord.names());
+        result.put("route", route);
+        result.putAll(extra);
+        return result;
+    }
+    private static String entityAction(Object value) {
+        String action = String.valueOf(value == null ? "use" : value).trim().toLowerCase(Locale.ROOT);
+        if (!Set.of("use", "attack").contains(action)) throw new IllegalArgumentException("Unsupported entity action: " + value + " (expected use or attack)");
+        return action;
     }
     private static Map<String,Object> clientState(MinecraftClientBridge bridge) {
         Map<String,Object> state = bridge.snapshot().toMap();

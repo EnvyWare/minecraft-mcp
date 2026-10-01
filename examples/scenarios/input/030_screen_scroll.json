@@ -1,0 +1,1 @@
+{"name":"screen_scroll_title","tags":["input","screen-actions","client-tools"],"requires":{"loaders":["neoforge"]},"steps":[{"id":"screen","tool":"mc.screen.state","args":{},"expect":{"result.hasScreen":true}},{"id":"scroll","tool":"mc.screen.scroll","args":{"x":213,"y":120,"amount":-1},"expect":{"result.status":"scrolled","result.amount":-1.0}}]}

@@ -1,0 +1,1 @@
+{"name":"screen_mouse_drag_title","tags":["input","screen-actions","client-tools"],"requires":{"loaders":["neoforge"]},"steps":[{"id":"drag","tool":"mc.screen.mouse.drag","args":{"fromX":5,"fromY":5,"toX":40,"toY":30,"steps":4},"expect":{"result.status":"dragged","result.steps":4}}]}

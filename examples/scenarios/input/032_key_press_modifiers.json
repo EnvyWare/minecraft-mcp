@@ -1,0 +1,1 @@
+{"name":"key_press_with_modifiers","tags":["input","keyboard"],"requires":{"loaders":["neoforge"]},"steps":[{"id":"shift_tab","tool":"mc.keyboard.press","args":{"key":"TAB","modifiers":["shift"]},"expect":{"result.status":"pressed","result.key":"TAB","result.modifiers.0":"shift","result.route":"default"}}]}
