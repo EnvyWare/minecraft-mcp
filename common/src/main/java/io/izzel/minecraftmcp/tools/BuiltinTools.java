@@ -57,7 +57,7 @@ public final class BuiltinTools {
         registry.register(simple("mc.server.disconnect.state", "Return disconnect screen/message state if the client is disconnected", args -> bridge.submit(bridge::disconnectState).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.server.disconnect.wait", "Wait for a disconnect screen, optionally matching messageContains", args -> { String needle = String.valueOf(args.getOrDefault("messageContains", "")); long timeoutMs = ((Number) args.getOrDefault("timeoutMs", 30000)).longValue(); long deadline = System.currentTimeMillis() + Math.max(0, timeoutMs); Map<String,Object> state; do { state = bridge.submit(bridge::disconnectState).get(10, TimeUnit.SECONDS); Object msg = state.get("message"); if (Boolean.TRUE.equals(state.get("disconnected")) && (needle.isBlank() || (msg != null && String.valueOf(msg).contains(needle)))) return state; bridge.waitTicks(1); } while (System.currentTimeMillis() < deadline); state = bridge.submit(bridge::disconnectState).get(10, TimeUnit.SECONDS); java.util.Map<String,Object> result = new java.util.LinkedHashMap<>(state); result.put("matched", false); result.put("messageContains", needle); return result; }));
         registry.register(simple("mc.block.interact", "Right-click a block through the normal client interaction path", args -> { int x = ((Number) args.getOrDefault("x", 0)).intValue(); int y = ((Number) args.getOrDefault("y", 0)).intValue(); int z = ((Number) args.getOrDefault("z", 0)).intValue(); String face = String.valueOf(args.getOrDefault("face", "up")); String hand = String.valueOf(args.getOrDefault("hand", "main")); return bridge.submit(() -> bridge.interactBlock(x, y, z, face, hand)).get(10, TimeUnit.SECONDS); }));
-        registry.register(simple("mc.world.join", "Join a singleplayer world, creating it with supplied options when missing", args -> { String name = String.valueOf(args.getOrDefault("name", "minecraft_mcp_test_world")); boolean created = bridge.joinWorld(name, args); return Map.of("status", "joining", "created", created, "name", name); }));
+        registry.register(simple("mc.world.join", "Join a singleplayer world, creating it with supplied options when missing", args -> { String name = String.valueOf(args.getOrDefault("name", "minecraft_mcp_test_world")); waitUntilLoaded(bridge, 120_000L); boolean created = bridge.joinWorld(name, args); return Map.of("status", "joining", "created", created, "name", name); }));
         registry.register(simple("mc.world.leave", "Leave the current world to title", args -> { bridge.submit(() -> { bridge.leaveWorldToTitle(); return null; }).get(60, TimeUnit.SECONDS); return Map.of("status", "left_to_title"); }));
         registry.register(simple("mc.condition.wait", "Wait until a client condition is true", args -> { String condition = String.valueOf(args.getOrDefault("condition", "client.inWorld == true")); long timeoutMs = ((Number) args.getOrDefault("timeoutMs", 30000)).longValue(); boolean matched = bridge.waitUntil(condition, timeoutMs); return Map.of("condition", condition, "matched", matched); }));
         registry.register(simple("mc.world.snapshot", "Get current world snapshot", args -> bridge.submit(bridge::worldSnapshot).get(10, TimeUnit.SECONDS)));
@@ -105,8 +105,17 @@ public final class BuiltinTools {
         if (!Set.of("use", "attack").contains(action)) throw new IllegalArgumentException("Unsupported entity action: " + value + " (expected use or attack)");
         return action;
     }
+    /** Opening a world while the resource loading overlay is still up hangs the client, so wait it out. */
+    private static void waitUntilLoaded(MinecraftClientBridge bridge, long timeoutMs) throws Exception {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (bridge.submit(bridge::loading).get(10, TimeUnit.SECONDS)) {
+            if (System.currentTimeMillis() >= deadline) throw new IllegalStateException("client is still loading resources");
+            bridge.waitTicks(1);
+        }
+    }
     private static Map<String,Object> clientState(MinecraftClientBridge bridge) {
         Map<String,Object> state = bridge.snapshot().toMap();
+        state.put("loading", bridge.loading());
         state.put("background", bridge.background());
         state.put("window", bridge.windowState());
         return state;

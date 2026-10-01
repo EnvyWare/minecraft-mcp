@@ -14,6 +14,8 @@ Implemented tools:
 
 - `mc.client.state` returns both `inWorld` and `rawInWorld`. `rawInWorld` means the underlying client level/player exists; `inWorld` means the client is in a playable world state with no loading/GUI screen blocking normal controls.
 
+- `mc.client.state` reports `loading` while a resource loading overlay is showing. `mc.world.join` waits for loading to finish before opening a world.
+
 - `mc.client.state` and `mc.debug.capabilities` also report `background` (whether background mode is on) and `window` (visibility, focus, mouse grab, frame rate). `mc.debug.capabilities` reports `windowControl` (whether `mc.window.*` is supported) and, on NeoForge, `earlyWindowControl`. See [headless.md](headless.md#background-mode-windowsmacoslinux-desktop).
 
 - Screen, keyboard and entity tools are described in [input-and-entity-tools.md](input-and-entity-tools.md).

@@ -284,6 +284,10 @@ public interface MinecraftClientBridge {
     default void shutdownClient() {
         throw new UnsupportedOperationException("Client shutdown is not implemented by " + loader());
     }
+    /** Whether a loading overlay (initial resource load or a resource reload) is showing. */
+    default boolean loading() {
+        return false;
+    }
     default boolean background() {
         return false;
     }

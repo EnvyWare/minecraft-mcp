@@ -121,6 +121,7 @@ public final class NeoForgeMinecraftMcpMod {
         public Path gameDirectory() { return FMLPaths.GAMEDIR.get(); }
         public boolean isOnClientThread() { return mc.isSameThread(); }
         public void execute(Runnable runnable) { mc.execute(runnable); }
+        public boolean loading() { return mc.getOverlay() != null; }
         public boolean background() { return BackgroundWindow.enabled(); }
         public Map<String, Object> windowState() { return BackgroundWindow.get().state(); }
         public Map<String, Object> showWindow() { return BackgroundWindow.get().show(); }
