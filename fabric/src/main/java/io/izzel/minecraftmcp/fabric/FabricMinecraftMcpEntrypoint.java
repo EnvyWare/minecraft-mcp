@@ -433,6 +433,7 @@ public final class FabricMinecraftMcpEntrypoint implements ClientModInitializer 
         }
         public void leaveWorldToTitle() {
             if (mc.level != null) {
+                mc.level.disconnect();
                 mc.disconnect(new GenericMessageScreen(Component.translatable("menu.savingLevel")));
             }
         }

@@ -469,6 +469,7 @@ public final class NeoForgeMinecraftMcpMod {
         }
         public void leaveWorldToTitle() {
             if (mc.level != null) {
+                mc.level.disconnect();
                 mc.disconnect(new GenericMessageScreen(Component.translatable("menu.savingLevel")));
             }
         }
