@@ -42,6 +42,19 @@ class ScenarioMetadataTest {
     }
 
     @Test
+    void backgroundRequirementSkipsOnlyWhenModeIsKnownAndDifferent() throws Exception {
+        Path dir = Files.createTempDirectory("scenario-background");
+        Files.writeString(dir.resolve("background_only.json"), """
+                {"name":"background_only","requires":{"background":true},"steps":[{"id":"ok","tool":"mc.ok","args":{}}]}
+                """);
+        ScenarioEngine engine = new ScenarioEngine(registry());
+
+        assertEquals(1, engine.runBatch(dir.toString(), ScenarioRunOptions.builder().background(false).build()).skipped());
+        assertEquals(1, engine.runBatch(dir.toString(), ScenarioRunOptions.builder().background(true).build()).passed());
+        assertEquals(1, engine.runBatch(dir.toString(), ScenarioRunOptions.defaults()).passed());
+    }
+
+    @Test
     void expectedFailureDoesNotIncreaseFailedCount() throws Exception {
         Path dir = Files.createTempDirectory("scenario-expected-fail");
         Files.writeString(dir.resolve("missing.json"), """

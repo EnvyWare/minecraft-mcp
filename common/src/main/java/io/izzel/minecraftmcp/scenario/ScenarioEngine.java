@@ -102,6 +102,10 @@ public final class ScenarioEngine {
             if (options.loader() != null && !loaders.isEmpty() && !loaders.contains(options.loader())) {
                 return "loader " + options.loader() + " not in " + loaders;
             }
+            Object background = requires.get("background");
+            if (options.background() != null && background instanceof Boolean wanted && wanted != options.background()) {
+                return "background " + options.background() + " but scenario requires " + wanted;
+            }
         }
         return null;
     }
