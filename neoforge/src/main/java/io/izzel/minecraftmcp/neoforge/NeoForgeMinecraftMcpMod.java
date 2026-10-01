@@ -483,6 +483,7 @@ public final class NeoForgeMinecraftMcpMod {
             if (mc.level != null) {
                 mc.level.disconnect();
                 mc.disconnect(new GenericMessageScreen(Component.translatable("menu.savingLevel")));
+                mc.setScreen(new TitleScreen());
             }
         }
         public Map<String, Object> worldSnapshot() {
