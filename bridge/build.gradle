@@ -1,0 +1,27 @@
+// Plain Java launcher bridge: no Minecraft and no third-party runtime dependencies, so it runs with `java -jar`.
+base {
+    archivesName = "${rootProject.property('mod_id')}-bridge"
+}
+
+sourceSets {
+    main {
+        java {
+            // reuse common's plain-Java JSON codec without depending on the loom project
+            srcDir '../common/src/main/java'
+            include 'io/izzel/minecraftmcp/stdio/**', 'io/izzel/minecraftmcp/json/Json.java'
+        }
+    }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'io.izzel.minecraftmcp.stdio.BridgeMain',
+                'Implementation-Title': 'Minecraft MCP stdio bridge',
+                'Implementation-Version': project.version
+    }
+}
+
