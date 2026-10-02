@@ -26,7 +26,7 @@ is up.
 ./gradlew :bridge:publishToMavenLocal
 ```
 
-Maven coordinates: `com.envyware.minecraftmcp:minecraft_mcp-bridge:<version>-envy.1`.
+Maven coordinates: `com.envyware.minecraftmcp:minecraft_mcp-bridge:<version>-envy.2`.
 
 ## Options
 

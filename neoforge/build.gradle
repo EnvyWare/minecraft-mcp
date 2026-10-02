@@ -85,7 +85,7 @@ publishing {
             // common is compiled into this jar and has no runtime dependencies, so publish the jars without a dependency list
             groupId = 'com.envyware.minecraftmcp'
             artifactId = base.archivesName.get()
-            version = "${project.version}-envy.1"
+            version = "${project.version}-envy.2"
             artifact jar
             artifact sourcesJar
         }

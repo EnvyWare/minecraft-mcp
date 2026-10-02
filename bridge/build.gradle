@@ -35,7 +35,7 @@ publishing {
             // same coordinates scheme as the NeoForge jar
             groupId = 'com.envyware.minecraftmcp'
             artifactId = base.archivesName.get()
-            version = "${project.version}-envy.1"
+            version = "${project.version}-envy.2"
             from components.java
         }
     }
