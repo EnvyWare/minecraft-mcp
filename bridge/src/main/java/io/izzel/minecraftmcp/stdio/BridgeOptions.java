@@ -4,10 +4,10 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 
-/** Command line options, each with an environment variable fallback. */
-public record BridgeOptions(Path gameDir, String launchCommand, Path launchCwd, Integer port, String token, Duration startupTimeout, boolean keepClient) {
+/** Command line options, each with an environment variable fallback, then an optional one-shot command (see {@link BridgeCommand}). */
+public record BridgeOptions(Path gameDir, String launchCommand, Path launchCwd, Integer port, String token, Duration startupTimeout, boolean keepClient, List<String> command) {
     static final String USAGE = """
-            Usage: java -jar minecraft_mcp-bridge.jar --game-dir <dir> [options]
+            Usage: java -jar minecraft_mcp-bridge.jar --game-dir <dir> [options] [command]
               --game-dir <dir>          game directory with mcp/server.json and logs/latest.log (MINECRAFT_MCP_GAME_DIR)
               --launch-command <cmd>    command that starts the client, run through cmd /c or sh -c (MINECRAFT_MCP_LAUNCH_COMMAND)
               --launch-cwd <dir>        working directory for the launch command (MINECRAFT_MCP_LAUNCH_CWD)
@@ -20,8 +20,10 @@ public record BridgeOptions(Path gameDir, String launchCommand, Path launchCwd, 
     public static BridgeOptions parse(String[] args, Map<String, String> env) {
         Map<String, String> values = new HashMap<>();
         boolean keepClient = Boolean.parseBoolean(env.getOrDefault("MINECRAFT_MCP_KEEP_CLIENT", "false"));
+        List<String> command = List.of();
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
+            if (!arg.startsWith("--")) { command = List.of(args).subList(i, args.length); break; }
             if (arg.equals("--keep-client")) { keepClient = true; continue; }
             if (!List.of("--game-dir", "--launch-command", "--launch-cwd", "--port", "--token", "--startup-timeout").contains(arg)) throw new IllegalArgumentException("Unknown option: " + arg);
             if (i + 1 >= args.length) throw new IllegalArgumentException("Missing value for " + arg);
@@ -35,7 +37,7 @@ public record BridgeOptions(Path gameDir, String launchCommand, Path launchCwd, 
         Integer fixedPort = port == null || port.equals("0") ? null : Integer.valueOf(port);
         return new BridgeOptions(Path.of(gameDir).toAbsolutePath().normalize(), value(values, env, "--launch-command", "MINECRAFT_MCP_LAUNCH_COMMAND"),
                 launchCwd == null ? null : Path.of(launchCwd).toAbsolutePath().normalize(), fixedPort, value(values, env, "--token", "MINECRAFT_MCP_AUTH_TOKEN"),
-                Duration.ofSeconds(timeout == null ? 600 : Long.parseLong(timeout)), keepClient);
+                Duration.ofSeconds(timeout == null ? 600 : Long.parseLong(timeout)), keepClient, List.copyOf(command));
     }
 
     public Path serverJson() { return gameDir.resolve("mcp/server.json"); }

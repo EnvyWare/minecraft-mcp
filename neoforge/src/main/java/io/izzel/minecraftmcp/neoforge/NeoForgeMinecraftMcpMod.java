@@ -78,6 +78,7 @@ public final class NeoForgeMinecraftMcpMod {
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         if (FMLLoader.getDist().isClient()) {
             NeoForgeBackground.register(modBus);
+            NeoForgeFilm.register();
             try {
                 server = MinecraftMcpBootstrap.start(new NeoForgeBridge());
                 System.out.println("[Minecraft MCP] NeoForge MCP server started on port " + server.port());
@@ -144,6 +145,22 @@ public final class NeoForgeMinecraftMcpMod {
             KeyMapping.set(InputConstants.getKey(KeyAliases.normalize(key)), down);
         }
         public void shutdownClient() { mc.stop(); }
+        public Map<String, Object> playCamera(Map<String, Object> args) throws Exception { return NeoForgeFilm.get().play(args); }
+        public Map<String, Object> stopCamera() { return NeoForgeFilm.get().stop(); }
+        public Map<String, Object> hudState() {
+            java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+            state.put("hidden", mc.options.hideGui);
+            state.put("debugScreen", mc.getDebugOverlay().showDebugScreen());
+            state.put("screen", mc.screen == null ? null : mc.screen.getClass().getName());
+            return state;
+        }
+        public Map<String, Object> setHud(boolean hidden) {
+            mc.options.hideGui = hidden;
+            return hudState();
+        }
+        public Map<String, Object> startRecording(Map<String, Object> args) throws Exception { return NeoForgeFilm.get().recordStart(args); }
+        public Map<String, Object> stopRecording() throws Exception { return NeoForgeFilm.get().recordStop(); }
+        public Map<String, Object> recordingState() { return NeoForgeFilm.get().recordState(); }
 
         public Map<String, Object> takeScreenshot(Map<String, Object> args) {
             String requested = String.valueOf(args.getOrDefault("name", ""));
@@ -478,7 +495,8 @@ public final class NeoForgeMinecraftMcpMod {
             String levelName = name == null || name.isBlank() ? "minecraft_mcp_test_world" : name;
             LevelSettings settings = new LevelSettings(levelName, GameType.CREATIVE, false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
             long seed = options.get("seed") instanceof Number n ? n.longValue() : 0L;
-            WorldOptions worldOptions = new WorldOptions(seed, false, false);
+            boolean structures = Boolean.parseBoolean(String.valueOf(options.getOrDefault("structures", false)));
+            WorldOptions worldOptions = new WorldOptions(seed, structures, false);
             java.util.function.Function<net.minecraft.core.RegistryAccess, net.minecraft.world.level.levelgen.WorldDimensions> dimensions = registryAccess -> {
                 String preset = String.valueOf(options.getOrDefault("preset", options.getOrDefault("generator", "normal"))).trim().toLowerCase(java.util.Locale.ROOT);
                 if (preset.equals("flat") || preset.equals("superflat")) {
@@ -500,8 +518,11 @@ public final class NeoForgeMinecraftMcpMod {
         }
         public Map<String, Object> worldSnapshot() {
             if (mc.level == null) return Map.of("inWorld", false);
+            var singleplayer = mc.getSingleplayerServer();
             return Map.of(
                 "inWorld", true,
+                "levelName", singleplayer == null ? "" : singleplayer.getWorldData().getLevelName(),
+                "spawn", Map.of("x", mc.level.getSharedSpawnPos().getX(), "y", mc.level.getSharedSpawnPos().getY(), "z", mc.level.getSharedSpawnPos().getZ()),
                 "dimension", mc.level.dimension().location().toString(),
                 "gameTime", mc.level.getGameTime(),
                 "difficulty", mc.level.getDifficulty().getKey(),

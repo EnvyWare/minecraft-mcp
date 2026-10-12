@@ -85,7 +85,7 @@ final class NeoForgeEntities {
         return result;
     }
 
-    private static Optional<Entity> resolve(Minecraft mc, EntitySelector.Query query) {
+    static Optional<Entity> resolve(Minecraft mc, EntitySelector.Query query) {
         return EntitySelector.select(query, candidates(mc)).map(candidate -> mc.level.getEntity(candidate.id()));
     }
 

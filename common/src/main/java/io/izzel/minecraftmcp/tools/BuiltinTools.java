@@ -2,6 +2,7 @@ package io.izzel.minecraftmcp.tools;
 
 import io.izzel.minecraftmcp.bridge.MinecraftClientBridge;
 import io.izzel.minecraftmcp.entity.EntitySelector;
+import io.izzel.minecraftmcp.film.FilmRunner;
 import io.izzel.minecraftmcp.input.KeyChord;
 import io.izzel.minecraftmcp.mcp.*;
 import io.izzel.minecraftmcp.scenario.ScenarioEngine;
@@ -80,6 +81,14 @@ public final class BuiltinTools {
         registry.register(simple("mc.packet.dump", "Dump recorded packets with optional filters", bridge::dumpPackets));
         registry.register(simple("mc.packet.wait", "Wait until recorded packets matching a filter reach a required count", bridge::waitForPackets));
         registry.register(simple("mc.screenshot.take", "Take a client screenshot and save it under the game directory", args -> bridge.submit(() -> bridge.takeScreenshot(args)).get(30, TimeUnit.SECONDS)));
+        registry.register(simple("mc.camera.play", "Play camera shots (keyframed path, orbit or follow) in the client and encode them to an mp4 at a fixed frame rate; returns the file, timing, quality checks and a contact sheet", bridge::playCamera));
+        registry.register(simple("mc.camera.stop", "Abort a running mc.camera.play", args -> bridge.stopCamera()));
+        registry.register(simple("mc.film.run", "Run a film scene (JSON file or object): world and game setup, shots, output; returns the video, timing, quality checks and a contact sheet. draft: true for a quick 640x360 take", args -> new FilmRunner(registry, scenarios, bridge.gameDirectory()).run(args)));
+        registry.register(simple("mc.hud.state", "Whether the HUD is hidden (F1) and whether the debug screen is open", args -> bridge.submit(bridge::hudState).get(10, TimeUnit.SECONDS)));
+        registry.register(simple("mc.hud.set", "Hide or show the HUD like F1 (hidden: true|false); not saved to options.txt", args -> { boolean hidden = hudHidden(args); return bridge.submit(() -> bridge.setHud(hidden)).get(10, TimeUnit.SECONDS); }));
+        registry.register(simple("mc.record.start", "Start recording what the client renders, in real time at a fixed frame rate, to an mp4 (for things that must play live, such as battles)", bridge::startRecording));
+        registry.register(simple("mc.record.stop", "Stop the recording and return the file, timing, quality checks and a contact sheet", args -> bridge.stopRecording()));
+        registry.register(simple("mc.record.state", "Whether a recording is running, and its length so far", args -> bridge.recordingState()));
         registry.register(simple("mc.movement.waypoints", "Move the client player through one or more waypoints", args -> { List<Vec3> waypoints = parseWaypoints(args.get("waypoints")); boolean loop = Boolean.parseBoolean(String.valueOf(args.getOrDefault("loop", false))); int maxLoops = ((Number) args.getOrDefault("maxLoops", loop ? 0 : 1)).intValue(); double tolerance = ((Number) args.getOrDefault("tolerance", 0.75)).doubleValue(); long timeoutMs = ((Number) args.getOrDefault("timeoutMs", 30000)).longValue(); boolean sprint = Boolean.parseBoolean(String.valueOf(args.getOrDefault("sprint", false))); boolean sneak = Boolean.parseBoolean(String.valueOf(args.getOrDefault("sneak", false))); boolean controlView = Boolean.parseBoolean(String.valueOf(args.getOrDefault("controlView", true))); return bridge.moveWaypoints(waypoints, loop, maxLoops, tolerance, timeoutMs, sprint, sneak, controlView); }));
     }
     private static Map<String,Object> pressKey(MinecraftClientBridge bridge, Map<String,Object> args) throws Exception {
@@ -100,6 +109,11 @@ public final class BuiltinTools {
         result.put("route", route);
         result.putAll(extra);
         return result;
+    }
+    private static boolean hudHidden(Map<String,Object> args) {
+        if (args.get("hidden") != null) return Boolean.parseBoolean(String.valueOf(args.get("hidden")));
+        if (args.get("visible") != null) return !Boolean.parseBoolean(String.valueOf(args.get("visible")));
+        throw new IllegalArgumentException("hidden (true or false) is required");
     }
     private static String entityAction(Object value) {
         String action = String.valueOf(value == null ? "use" : value).trim().toLowerCase(Locale.ROOT);

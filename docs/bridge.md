@@ -61,6 +61,31 @@ as well. Usually you do not need a fixed endpoint: the bridge reads `server.json
 `client.launch` returns once the endpoint answers. Resources may still be loading at that point: check
 `mc.client.state` (`loading`) before joining a world; `mc.world.join` also waits for it.
 
+## One-shot commands
+
+After the options, a command makes the bridge do one thing and exit instead of serving MCP. A client started with
+`launch` keeps running after the bridge exits, so scripts and agents can keep one warm client and run many short
+commands against it: iterating on a film scene takes seconds instead of a client launch.
+
+```bash
+java -jar minecraft_mcp-bridge.jar --game-dir runs/client --launch-command "gradlew.bat :neoforge:runClient -DminecraftMcp.background=true" launch
+java -jar minecraft_mcp-bridge.jar --game-dir runs/client call mc.film.run '{"scene": "scenes/valley.json", "draft": true}'
+java -jar minecraft_mcp-bridge.jar --game-dir runs/client call mc.film.run @args.json
+java -jar minecraft_mcp-bridge.jar --game-dir runs/client stop
+```
+
+| Command | What it does |
+|---|---|
+| `launch [json]` | `client.launch` (arguments as JSON, e.g. `{"timeoutSeconds": 900}`), then exits and leaves the client running. |
+| `status` | `client.status`. |
+| `call <tool> [json\|@file]` | Calls one tool on the running client; the arguments are a JSON object, inline or read from a file. |
+| `logs [json]` | `client.logs`. |
+| `stop [json]` | Stops the client through `mc.client.stop` and waits for its endpoint to go away. (A one-shot bridge did not launch the client itself, so it cannot kill the process tree.) |
+
+The result text is printed to stdout; the exit code is 0, 1 when the result is an error, or 2 for a usage error.
+The client endpoint is found through `mcp/server.json` as usual, so `call` also works against a client that an MCP
+session's bridge launched.
+
 ## Claude Code
 
 `.mcp.json` in your project:

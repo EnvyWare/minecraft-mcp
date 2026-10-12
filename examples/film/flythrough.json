@@ -1,0 +1,42 @@
+{
+  "name": "spawn-flythrough",
+  "origin": "spawn",
+  "setup": {
+    "world": {"name": "film_flythrough", "seed": 424242},
+    "time": 1000,
+    "weather": "clear",
+    "clearEntities": true
+  },
+  "camera": {"freezeWorld": true},
+  "output": {"path": "films/spawn-flythrough.mp4", "width": 1280, "height": 720, "fps": 30},
+  "draft": {"width": 640, "height": 360, "fps": 10},
+  "shots": [
+    {
+      "name": "crane",
+      "seconds": 6,
+      "camera": [[-24, 3, -24], [-20, 18, -36], [-4, 40, -52]],
+      "lookAt": [0, 4, 0],
+      "clearance": true
+    },
+    {
+      "name": "flyover",
+      "seconds": 10,
+      "camera": [[-4, 40, -52], [40, 34, -10], [100, 30, 40], [170, 34, 70]],
+      "pitchMin": 5,
+      "pitchMax": 30,
+      "clearance": true
+    },
+    {
+      "name": "orbit",
+      "preset": "orbit",
+      "center": [0, 0, 0],
+      "radius": 48,
+      "height": 36,
+      "degrees": 120,
+      "lookHeight": 4,
+      "seconds": 8,
+      "easing": "easeInOutSine",
+      "clearance": true
+    }
+  ]
+}

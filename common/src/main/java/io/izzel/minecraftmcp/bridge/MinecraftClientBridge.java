@@ -262,6 +262,31 @@ public interface MinecraftClientBridge {
     default Map<String, Object> takeScreenshot(Map<String, Object> args) {
         throw new UnsupportedOperationException("Screenshot capture is not implemented by " + loader());
     }
+    /** Plays camera shots on the render thread and encodes them to a video; blocks until done. See docs/film-tools.md. */
+    default Map<String, Object> playCamera(Map<String, Object> args) throws Exception {
+        throw new UnsupportedOperationException("The camera player is not implemented by " + loader());
+    }
+    default Map<String, Object> stopCamera() {
+        throw new UnsupportedOperationException("The camera player is not implemented by " + loader());
+    }
+    /** HUD visibility: {@code hidden} is the F1 state ({@code options.hideGui}); also reports the debug screen. */
+    default Map<String, Object> hudState() {
+        throw new UnsupportedOperationException("HUD control is not implemented by " + loader());
+    }
+    /** Hides or shows the HUD like F1, without touching options.txt. */
+    default Map<String, Object> setHud(boolean hidden) {
+        throw new UnsupportedOperationException("HUD control is not implemented by " + loader());
+    }
+    /** Starts recording what the client renders, in real time at a fixed frame rate. See docs/film-tools.md. */
+    default Map<String, Object> startRecording(Map<String, Object> args) throws Exception {
+        throw new UnsupportedOperationException("Recording is not implemented by " + loader());
+    }
+    default Map<String, Object> stopRecording() throws Exception {
+        throw new UnsupportedOperationException("Recording is not implemented by " + loader());
+    }
+    default Map<String, Object> recordingState() {
+        throw new UnsupportedOperationException("Recording is not implemented by " + loader());
+    }
     default boolean waitUntil(String condition, long timeoutMs) {
         String normalized = condition == null ? "" : condition.trim();
         ConditionExpression expression = ConditionParser.parse(normalized);
