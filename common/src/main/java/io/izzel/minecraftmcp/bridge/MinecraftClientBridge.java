@@ -269,6 +269,16 @@ public interface MinecraftClientBridge {
     default Map<String, Object> stopCamera() {
         throw new UnsupportedOperationException("The camera player is not implemented by " + loader());
     }
+    /** Starts recording what the client renders, in real time at a fixed frame rate. See docs/film-tools.md. */
+    default Map<String, Object> startRecording(Map<String, Object> args) throws Exception {
+        throw new UnsupportedOperationException("Recording is not implemented by " + loader());
+    }
+    default Map<String, Object> stopRecording() throws Exception {
+        throw new UnsupportedOperationException("Recording is not implemented by " + loader());
+    }
+    default Map<String, Object> recordingState() {
+        throw new UnsupportedOperationException("Recording is not implemented by " + loader());
+    }
     default boolean waitUntil(String condition, long timeoutMs) {
         String normalized = condition == null ? "" : condition.trim();
         ConditionExpression expression = ConditionParser.parse(normalized);

@@ -5,6 +5,7 @@ inside the client, so a whole shot is one tool call instead of several round tri
 
 - `mc.camera.play`: play keyframed camera shots and encode them to an mp4 at a fixed frame rate.
 - `mc.camera.stop`: abort a running `mc.camera.play`.
+- `mc.record.start`, `mc.record.stop`, `mc.record.state`: record what the client renders in real time, e.g. a battle.
 
 Supported on NeoForge. Fabric reports the tools as not implemented. Works in [background mode](headless.md#background-mode-windowsmacoslinux-desktop):
 frames are read from the game's own framebuffer, so the window can stay hidden.
@@ -158,3 +159,33 @@ overshoot or loop when keyframes are unevenly spaced.
 
 Aborts a running `mc.camera.play` (it then fails with "stopped by mc.camera.stop") and restores the client settings.
 Returns `{"status": "stopping"}`, or `{"status": "idle"}` when nothing is playing.
+
+## `mc.record.start`, `mc.record.stop`, `mc.record.state`
+
+For things that must play in real time, such as a Pixelmon battle, record whatever the client renders: the player's
+view, or the view another tool sets up.
+
+```json
+{
+  "output": "films/battle.mp4",
+  "fps": 30,
+  "width": 1280,
+  "height": 720,
+  "maxSeconds": 120
+}
+```
+
+`mc.record.start` returns at once (`{"status": "recording", "output": ...}`). Output frame `k` is the frame rendered
+last at wall-clock time `k / fps`; when rendering falls behind, the previous frame is repeated so the video keeps
+real-time pace (`duplicatedFrames`, with a warning above 5%). While recording, the frame-rate cap is raised to twice
+the output rate (at least 60).
+
+It takes the same output arguments as `mc.camera.play` (`output`, `fps`, `width`, `height`, `draft`, `format`, `crf`,
+`preset`, `ffmpeg`, `contactSheet`) plus `hideHud` (default `true`), `resize` (default `true`) and `maxSeconds`
+(default `600`; the recording stops by itself after that, and `mc.record.stop` then returns its report).
+
+`mc.record.stop` finishes the file and returns the same report as `mc.camera.play` (output, frames, quality, contact
+sheet) with `timing.renderedFps`, `capturedFrames` and `duplicatedFrames`. `mc.record.state` returns
+`{"recording": true, "seconds": ..., "frames": ..., "duplicatedFrames": ...}` or `{"recording": false}`.
+
+Only one recording or camera shot runs at a time.

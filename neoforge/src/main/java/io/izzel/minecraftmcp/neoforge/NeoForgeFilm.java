@@ -59,9 +59,13 @@ import java.util.function.Supplier;
  */
 final class NeoForgeFilm {
     private static final NeoForgeFilm INSTANCE = new NeoForgeFilm();
+    /** Minecraft treats a frame-rate limit of 260 as unlimited. */
+    static final int UNCAPPED = 260;
 
     private final Minecraft mc = Minecraft.getInstance();
     private volatile Take take;
+    private volatile Recording recording;
+    private volatile Map<String, Object> finishedRecording;
     private ByteBuffer readback;
 
     private NeoForgeFilm() {}
@@ -229,7 +233,7 @@ final class NeoForgeFilm {
 
     private Take begin(PlayOptions options, FilmSettings settings, List<String> warnings) {
         if (mc.level == null || mc.player == null) throw new IllegalStateException("not in a world; join one with mc.world.join first");
-        if (take != null || ClientSetup.active()) throw new IllegalStateException("a camera shot or recording is already running");
+        if (take != null || recording != null || ClientSetup.active()) throw new IllegalStateException("a camera shot or recording is already running");
         if (mc.screen != null) {
             warnings.add("closed screen " + mc.screen.getClass().getName());
             mc.setScreen(null);
@@ -237,7 +241,7 @@ final class NeoForgeFilm {
         if (options.movePlayer() && mc.gameMode != null && mc.gameMode.getPlayerMode() != GameType.SPECTATOR) {
             warnings.add("the player is in " + mc.gameMode.getPlayerMode().getName() + " mode; use spectator so moving it along with the camera cannot hurt it or be blocked");
         }
-        ClientSetup setup = ClientSetup.apply(mc, options.hideHud(), options.resize() ? settings.width() : 0, options.resize() ? settings.height() : 0, options.freezeWorld());
+        ClientSetup setup = ClientSetup.apply(mc, options.hideHud(), options.resize() ? settings.width() : 0, options.resize() ? settings.height() : 0, options.freezeWorld(), UNCAPPED);
         Take t = new Take(options, setup);
         SectionRenderDispatcher dispatcher = mc.levelRenderer.getSectionRenderDispatcher();
         t.maxFreeBuffers = dispatcher == null ? 0 : dispatcher.getFreeBufferCount();
@@ -357,6 +361,8 @@ final class NeoForgeFilm {
     }
 
     private void postFrame() {
+        Recording r = recording;
+        if (r != null) recordFrame(r);
         Take t = take;
         if (t == null) return;
         ShotRun s = t.shot;
@@ -503,6 +509,166 @@ final class NeoForgeFilm {
         encoder.submit(buffer, cut);
     }
 
+    // ---- real-time recording ----
+
+    /**
+     * A real-time recording: output frame {@code k} is whatever was rendered last at wall-clock time {@code k / fps}.
+     * When rendering falls behind, the previous frame is repeated so the video keeps real-time pace.
+     */
+    private static final class Recording {
+        final FilmSettings settings;
+        final ClientSetup setup;
+        final FilmEncoder encoder;
+        final int[] size;
+        final long maxNanos;
+        final List<String> warnings;
+        long startNanos;
+        long written;
+        long captured;
+        long duplicated;
+        long rendered;
+
+        Recording(FilmSettings settings, ClientSetup setup, FilmEncoder encoder, int[] size, double maxSeconds, List<String> warnings) {
+            this.settings = settings;
+            this.setup = setup;
+            this.encoder = encoder;
+            this.size = size;
+            this.maxNanos = (long) (maxSeconds * 1e9);
+            this.warnings = warnings;
+        }
+
+        double seconds() {
+            return startNanos == 0 ? 0 : (System.nanoTime() - startNanos) / 1e9;
+        }
+    }
+
+    Map<String, Object> recordStart(Map<String, Object> args) throws Exception {
+        FilmSettings settings = FilmSettings.from(args, FMLPaths.GAMEDIR.get(), String.valueOf(args.getOrDefault("name", "recording")));
+        boolean hideHud = bool(args.get("hideHud"), true);
+        boolean resize = bool(args.get("resize"), true);
+        double maxSeconds = args.get("maxSeconds") instanceof Number n ? n.doubleValue() : 600;
+        List<String> warnings = new ArrayList<>(settings.warnings());
+        ClientSetup setup = onRender(() -> {
+            if (take != null || recording != null || ClientSetup.active()) throw new IllegalStateException("a camera shot or recording is already running");
+            // render at least twice the output rate so every output frame is a fresh one
+            return ClientSetup.apply(mc, hideHud, resize ? settings.width() : 0, resize ? settings.height() : 0, false, Math.min(UNCAPPED, Math.max(60, settings.fps() * 2)));
+        });
+        try {
+            int[] size = awaitRenderSize(settings, warnings);
+            FrameSink sink = settings.format().equals("mp4")
+                    ? new FfmpegSink(settings.ffmpeg(), settings.output(), size[0], size[1], settings.fps(), settings.width(), settings.height(), settings.crf(), settings.preset())
+                    : new PngSequenceSink(settings.output(), size[0], size[1]);
+            FilmEncoder encoder = new FilmEncoder(sink, size[0], size[1], settings.fps(), settings.contactSheetFrames());
+            Recording r = new Recording(settings, setup, encoder, size, maxSeconds, warnings);
+            onRender(() -> { recording = r; finishedRecording = null; return null; });
+        } catch (Exception e) {
+            onRender(() -> { setup.restore(mc); return null; });
+            throw e;
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", "recording");
+        result.put("output", settings.output().toAbsolutePath().toString());
+        result.put("format", settings.format());
+        result.put("fps", settings.fps());
+        result.put("maxSeconds", maxSeconds);
+        result.put("warnings", warnings);
+        return result;
+    }
+
+    Map<String, Object> recordStop() throws Exception {
+        Recording r = onRender(() -> {
+            Recording current = recording;
+            recording = null;
+            return current;
+        });
+        if (r == null) {
+            Map<String, Object> finished = finishedRecording;
+            if (finished != null) return finished;
+            return Map.of("status", "idle");
+        }
+        return finishRecording(r, "stopped");
+    }
+
+    Map<String, Object> recordState() {
+        Recording r = recording;
+        if (r == null) return Map.of("recording", false);
+        Map<String, Object> state = new LinkedHashMap<>();
+        state.put("recording", true);
+        state.put("output", r.settings.output().toAbsolutePath().toString());
+        state.put("seconds", round(r.seconds()));
+        state.put("frames", r.written);
+        state.put("duplicatedFrames", r.duplicated);
+        return state;
+    }
+
+    private Map<String, Object> finishRecording(Recording r, String status) throws Exception {
+        double seconds = r.seconds();
+        try {
+            Map<String, Object> encoded = r.encoder.finish(r.settings.contactSheetPath());
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("status", status);
+            result.putAll(encoded);
+            result.put("renderSize", Map.of("width", r.size[0], "height", r.size[1]));
+            Map<String, Object> timing = new LinkedHashMap<>();
+            timing.put("wallSeconds", round(seconds));
+            timing.put("renderedFps", seconds > 0 ? round(r.rendered / seconds) : null);
+            timing.put("capturedFrames", r.captured);
+            timing.put("duplicatedFrames", r.duplicated);
+            result.put("timing", timing);
+            if (r.duplicated > r.written / 20) r.warnings.add(r.duplicated + " of " + r.written + " frames repeat the previous one because rendering was slower than " + r.settings.fps() + " fps");
+            result.put("warnings", r.warnings);
+            return result;
+        } catch (Exception e) {
+            r.encoder.abort();
+            throw e;
+        } finally {
+            onRender(() -> { r.setup.restore(mc); return null; });
+        }
+    }
+
+    private void recordFrame(Recording r) {
+        long now = System.nanoTime();
+        if (r.startNanos == 0) r.startNanos = now;
+        r.rendered++;
+        long elapsed = now - r.startNanos;
+        long due = elapsed * r.settings.fps() / 1_000_000_000L + 1;
+        try {
+            if (r.written < due) {
+                capture(r.encoder, false);
+                r.written++;
+                r.captured++;
+                while (r.written < due) {
+                    r.encoder.duplicate();
+                    r.written++;
+                    r.duplicated++;
+                }
+            }
+        } catch (Exception e) {
+            recording = null;
+            r.warnings.add("recording stopped: " + e.getMessage());
+            finishInBackground(r, "failed");
+            return;
+        }
+        if (elapsed >= r.maxNanos) {
+            recording = null;
+            r.warnings.add("stopped after maxSeconds " + r.maxNanos / 1e9);
+            finishInBackground(r, "stopped_at_max_seconds");
+        }
+    }
+
+    /** Finishes an automatically stopped recording off the render thread; {@code mc.record.stop} then returns its report. */
+    private void finishInBackground(Recording r, String status) {
+        Thread thread = new Thread(() -> {
+            try {
+                finishedRecording = finishRecording(r, status);
+            } catch (Exception e) {
+                finishedRecording = Map.of("status", "failed", "error", String.valueOf(e.getMessage()), "warnings", r.warnings);
+            }
+        }, "minecraft-mcp-record-finish");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
     // ---- helpers ----
 
     private <T> T onRender(Supplier<T> supplier) throws Exception {
@@ -564,13 +730,13 @@ final class NeoForgeFilm {
             return current != null;
         }
 
-        static ClientSetup apply(Minecraft mc, boolean hideHud, int width, int height, boolean freezeWorld) {
+        static ClientSetup apply(Minecraft mc, boolean hideHud, int width, int height, boolean freezeWorld, int framerateLimit) {
             var window = mc.getWindow();
             boolean resize = width > 0 && height > 0 && (window.getWidth() != width || window.getHeight() != height);
             ClientSetup setup = new ClientSetup(mc.options.hideGui, window.getFramerateLimit(), resize, window.getScreenWidth(), window.getScreenHeight(), freezeWorld);
             if (hideHud) mc.options.hideGui = true;
             mc.getToasts().clear();
-            window.setFramerateLimit(260);
+            window.setFramerateLimit(framerateLimit);
             window.updateVsync(false);
             if (resize) GLFW.glfwSetWindowSize(window.getWindow(), width, height);
             if (freezeWorld && mc.player != null) mc.player.connection.sendCommand("tick freeze");
