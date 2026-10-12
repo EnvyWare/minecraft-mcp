@@ -522,6 +522,7 @@ public final class NeoForgeMinecraftMcpMod {
             return Map.of(
                 "inWorld", true,
                 "levelName", singleplayer == null ? "" : singleplayer.getWorldData().getLevelName(),
+                "spawn", Map.of("x", mc.level.getSharedSpawnPos().getX(), "y", mc.level.getSharedSpawnPos().getY(), "z", mc.level.getSharedSpawnPos().getZ()),
                 "dimension", mc.level.dimension().location().toString(),
                 "gameTime", mc.level.getGameTime(),
                 "difficulty", mc.level.getDifficulty().getKey(),

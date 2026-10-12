@@ -3,6 +3,7 @@
 Tools for making smooth in-game videos with a handful of calls. The camera moves, frame capture and encoding all run
 inside the client, so a whole shot is one tool call instead of several round trips per frame.
 
+- `mc.film.run`: run a scene file (world setup, shots, output) in one call. Start here.
 - `mc.camera.play`: play keyframed camera shots and encode them to an mp4 at a fixed frame rate.
 - `mc.camera.stop`: abort a running `mc.camera.play`.
 - `mc.record.start`, `mc.record.stop`, `mc.record.state`: record what the client renders in real time, e.g. a battle.
@@ -22,6 +23,104 @@ Videos are encoded by piping raw frames into an external [ffmpeg](https://ffmpeg
 
 Without ffmpeg the frames are written as a PNG sequence instead (`<name>_frames/frame_00000.png`, ...) and the result
 has a warning. `"format": "png"` asks for a PNG sequence on purpose.
+
+## `mc.film.run`
+
+Runs a scene: joins (or creates) the world, sets the game up for filming, plays every shot with `mc.camera.play` and
+returns a compact report. One call per take.
+
+```json
+{"scene": "C:/path/to/examples/film/flythrough.json", "draft": true}
+```
+
+| Argument | Meaning |
+|---|---|
+| `scene` | Path of a JSON scene file (relative paths are under the game directory), or the scene object itself. |
+| `draft` | Quick take: the scene's `draft` overrides (or 640x360 at 10 fps), written next to the output as `<name>-draft.mp4`. |
+| `shots` | Only run the shots with these names (a name or a list), e.g. to iterate on one shot. |
+| `skipSetup` | Skip the world and game setup (the client is already set up from an earlier run). |
+| `output` | Override the output path. |
+| `verbose` | Also return the full `mc.camera.play` report as `cameraReport`. |
+
+Example scene ([examples/film/flythrough.json](../examples/film/flythrough.json)):
+
+```json
+{
+  "name": "spawn-flythrough",
+  "origin": "spawn",
+  "setup": {
+    "world": {"name": "film_flythrough", "seed": 424242},
+    "time": 1000,
+    "weather": "clear",
+    "clearEntities": true
+  },
+  "camera": {"freezeWorld": true},
+  "output": {"path": "films/spawn-flythrough.mp4", "width": 1280, "height": 720, "fps": 30},
+  "draft": {"width": 640, "height": 360, "fps": 10},
+  "shots": [
+    {"name": "crane", "seconds": 6, "camera": [[-24, 3, -24], [-20, 18, -36], [-4, 40, -52]], "lookAt": [0, 4, 0], "clearance": true},
+    {"name": "flyover", "seconds": 10, "camera": [[-4, 40, -52], [40, 34, -10], [100, 30, 40], [170, 34, 70]], "pitchMin": 5, "pitchMax": 30, "clearance": true},
+    {"name": "orbit", "preset": "orbit", "center": [0, 0, 0], "radius": 48, "height": 36, "degrees": 120, "lookHeight": 4, "seconds": 8, "clearance": true}
+  ]
+}
+```
+
+Scene fields:
+
+| Field | Meaning |
+|---|---|
+| `name` | Scene name, used for the default output name. |
+| `origin` | `"spawn"` (the world spawn) or `[x, y, z]`: every shot coordinate (`camera`, `path`, `look`, `lookAt`, `center`) is relative to it. The spawn does not move between runs, unlike the player. |
+| `setup` | World and game setup, below. |
+| `shots` | Shots, as for [`mc.camera.play`](#shots). |
+| `output` | Output arguments of `mc.camera.play` (`path`, `fps`, `width`, `height`, `crf`, `preset`, `format`, `ffmpeg`, `contactSheet`). |
+| `camera` | Behaviour arguments of `mc.camera.play` (`freezeWorld`, `readyRadius`, `hideHud`, ...). |
+| `draft` | Output overrides for `draft: true` runs, e.g. `{"width": 640, "height": 360, "fps": 10}`. |
+
+`setup` fields, run in this order:
+
+| Field | Default | Meaning |
+|---|---|---|
+| `world` | none | `mc.world.join` arguments (`name`, `seed`, `preset`), or just the name. Skipped when the client is already in a world of that name; another world is left first. Created with structures unless `"structures": false`. Without `world`, the scene films the current world. |
+| `worldTimeoutSeconds` | `300` | How long to wait for the world to load. |
+| `quiet` | `true` | Gamerules for a still, quiet scene: `sendCommandFeedback`, `doDaylightCycle`, `doWeatherCycle`, `doMobSpawning`, `doPatrolSpawning`, `doTraderSpawning`, `doInsomnia`, `doFireTick`, `announceAdvancements` all `false`. |
+| `gamemode` | `spectator` | Game mode. |
+| `gamerules` | none | More gamerules, e.g. `{"randomTickSpeed": 0}`; these win over `quiet`. |
+| `time` | unchanged | `/time set` value: ticks or `day`, `noon`, `night`, `midnight`. |
+| `weather` | unchanged | `clear`, `rain` or `thunder`. |
+| `clearEntities` | off | `true` kills every non-player entity (and the items and XP it drops); or a selector such as `"type=!minecraft:player,type=!minecraft:villager"`. Silent when nothing matches. |
+| `commands` | none | More commands, in order. |
+| `steps` | none | Tool calls in the [scenario step format](scenarios.md) (`tool`, `args`, `expect`), e.g. a mod's own setup tool. `"optional": true` turns a failure into a warning. |
+
+Commands are sent through the client connection (the world needs cheats, which `mc.world.join` worlds have), then a
+`mc.server.sync` round trip makes sure the server has run them before filming starts.
+
+Report:
+
+```json
+{
+  "status": "ok",
+  "scene": "spawn-flythrough",
+  "output": "C:\\...\\films\\spawn-flythrough.mp4",
+  "format": "mp4", "width": 1280, "height": 720, "fps": 30, "frames": 720, "seconds": 24.0, "draft": false,
+  "timing": {"wallSeconds": 41.2, "setupSeconds": 12.5, "preloadSeconds": 9.1, "captureSeconds": 18.3, "captureFps": 39.3, "encodeTailSeconds": 0.4, "forcedFrames": 0},
+  "quality": {"verdict": "ok", "frozenFrames": 0, "blackFrames": 0, "jitter": 0.08, "motionSpikes": 0, "...": "..."},
+  "contactSheet": "C:\\...\\films\\spawn-flythrough.contact.png",
+  "shots": [{"name": "crane", "frames": 180, "lift": 0, "captureFps": 35.2, "forcedFrames": 0, "maxSpeed": 14.1, "maxTurnRate": 22.5}],
+  "origin": [0.5, 72.0, -15.5],
+  "setup": {"world": "created film_flythrough", "commands": 16, "steps": 0},
+  "warnings": []
+}
+```
+
+A typical loop: run with `draft: true`, read the contact sheet, adjust the shots, run again (the world is reused, so
+only the shots run again), then run without `draft` for the final take.
+
+Why a scene format next to scenarios: a scenario is a test (steps with expectations, pass or fail, run in batches
+from a directory), while a scene describes a take: a world, a camera script and an output. Scenes reuse the scenario
+machinery where they overlap: setup `steps` are scenario steps run by the same engine, and `mc.film.run` and
+`mc.camera.play` can be steps of a scenario. Scene files live outside scenario directories (`examples/film/`), so
+batch runs do not pick them up. Scenes are JSON only; YAML would need a parser the mod does not ship.
 
 ## `mc.camera.play`
 
@@ -144,7 +243,8 @@ overshoot or loop when keyframes are unevenly spaced.
 - `quality`, computed from small luma thumbnails of every frame:
   - `blackFrames`: mean brightness below 8/255.
   - `frozenFrames`, `longestFrozenRun`: frames that barely differ from the previous one (mean change below 0.25/255).
-    A camera that holds still on a static scene also counts.
+    In `mc.camera.play`, frames where the camera itself hardly moved (the eased ends of a shot, a hold) are counted as
+    `stillFrames` instead; in a recording every unchanged frame counts as frozen.
   - `meanMotion`: average change between frames.
   - `jitter`: how unevenly the picture changes from frame to frame, relative to `meanMotion`. Smooth moves are well below 0.3.
   - `motionSpikes`: frames whose change is far below or above both neighbours' (a stutter or pop-in).

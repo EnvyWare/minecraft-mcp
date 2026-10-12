@@ -11,7 +11,10 @@ The endpoint is localhost-only by default.
 
 Use the [film tools](film-tools.md) instead of moving the player and taking screenshots frame by frame:
 
-1. Join a world (`mc.world.join`), wait for `mc.client.state` to report `rawInWorld: true` and `loading: false`, and
-   switch to spectator (`mc.command.run` with `/gamemode spectator`).
-2. Call `mc.camera.play` with the shots. Try `"draft": true` first (640x360 at 10 fps): it takes seconds.
-3. Read the `contactSheet` image and the `quality` block of the report; then run the final take without `draft`.
+1. Write a scene file (see [examples/film/flythrough.json](../examples/film/flythrough.json)): the world, the setup,
+   the shots and the output.
+2. Call `mc.film.run` with `{"scene": "<path>", "draft": true}`: a 640x360 take in seconds. Read the `contactSheet`
+   image and the `quality` block of the report, adjust the shots and run it again (the world is reused).
+3. Run it without `draft` for the final take.
+
+For live action that must play in real time, such as a battle, use `mc.record.start` and `mc.record.stop` instead.

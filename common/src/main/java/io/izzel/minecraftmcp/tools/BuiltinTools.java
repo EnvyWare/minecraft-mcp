@@ -2,6 +2,7 @@ package io.izzel.minecraftmcp.tools;
 
 import io.izzel.minecraftmcp.bridge.MinecraftClientBridge;
 import io.izzel.minecraftmcp.entity.EntitySelector;
+import io.izzel.minecraftmcp.film.FilmRunner;
 import io.izzel.minecraftmcp.input.KeyChord;
 import io.izzel.minecraftmcp.mcp.*;
 import io.izzel.minecraftmcp.scenario.ScenarioEngine;
@@ -82,6 +83,7 @@ public final class BuiltinTools {
         registry.register(simple("mc.screenshot.take", "Take a client screenshot and save it under the game directory", args -> bridge.submit(() -> bridge.takeScreenshot(args)).get(30, TimeUnit.SECONDS)));
         registry.register(simple("mc.camera.play", "Play camera shots (keyframed path, orbit or follow) in the client and encode them to an mp4 at a fixed frame rate; returns the file, timing, quality checks and a contact sheet", bridge::playCamera));
         registry.register(simple("mc.camera.stop", "Abort a running mc.camera.play", args -> bridge.stopCamera()));
+        registry.register(simple("mc.film.run", "Run a film scene (JSON file or object): world and game setup, shots, output; returns the video, timing, quality checks and a contact sheet. draft: true for a quick 640x360 take", args -> new FilmRunner(registry, scenarios, bridge.gameDirectory()).run(args)));
         registry.register(simple("mc.hud.state", "Whether the HUD is hidden (F1) and whether the debug screen is open", args -> bridge.submit(bridge::hudState).get(10, TimeUnit.SECONDS)));
         registry.register(simple("mc.hud.set", "Hide or show the HUD like F1 (hidden: true|false); not saved to options.txt", args -> { boolean hidden = hudHidden(args); return bridge.submit(() -> bridge.setHud(hidden)).get(10, TimeUnit.SECONDS); }));
         registry.register(simple("mc.record.start", "Start recording what the client renders, in real time at a fixed frame rate, to an mp4 (for things that must play live, such as battles)", bridge::startRecording));

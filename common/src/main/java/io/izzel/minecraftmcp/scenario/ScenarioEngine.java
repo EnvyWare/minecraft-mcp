@@ -66,26 +66,34 @@ public final class ScenarioEngine {
 
             List<Object> steps = (List<Object>) scenario.getOrDefault("steps", List.of());
             for (Object stepObj : steps) {
-                Map<String,Object> step = (Map<String,Object>) stepObj;
-                String id = String.valueOf(step.getOrDefault("id", step.get("tool")));
-                String tool = String.valueOf(step.get("tool"));
-                Map<String,Object> args = step.get("args") instanceof Map<?,?> m ? (Map<String,Object>) m : Map.of();
-                Object result = registry.call(tool, args);
-                Map<String,Object> stepReport = new LinkedHashMap<>();
-                stepReport.put("id", id);
-                stepReport.put("tool", tool);
-                stepReport.put("status", "passed");
-                stepReport.put("result", result);
-                if (step.get("expect") instanceof Map<?,?> expect) {
-                    ScenarioAssertion.assertExpect(stepReport, (Map<String,Object>) expect);
-                }
-                stepReports.add(stepReport);
+                stepReports.add(runStep((Map<String,Object>) stepObj));
             }
             report.add(name, "fail".equals(expected) ? "unexpected_passed" : "passed", stepReports, null, metadata);
         } catch (Throwable e) {
             String message = e.getMessage() == null ? e.getClass().getName() : e.getMessage();
             report.add(name, "fail".equals(expected) ? "expected_failed" : "failed", stepReports, message, metadata);
         }
+    }
+
+    /**
+     * Runs one scenario step ({@code id}, {@code tool}, {@code args}, optional {@code expect}) and returns its report.
+     * Throws when the tool fails or an expectation does not hold. Also used by film scenes for their setup steps.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String,Object> runStep(Map<String,Object> step) throws Exception {
+        String id = String.valueOf(step.getOrDefault("id", step.get("tool")));
+        String tool = String.valueOf(step.get("tool"));
+        Map<String,Object> args = step.get("args") instanceof Map<?,?> m ? (Map<String,Object>) m : Map.of();
+        Object result = registry.call(tool, args);
+        Map<String,Object> stepReport = new LinkedHashMap<>();
+        stepReport.put("id", id);
+        stepReport.put("tool", tool);
+        stepReport.put("status", "passed");
+        stepReport.put("result", result);
+        if (step.get("expect") instanceof Map<?,?> expect) {
+            ScenarioAssertion.assertExpect(stepReport, (Map<String,Object>) expect);
+        }
+        return stepReport;
     }
 
     @SuppressWarnings("unchecked")
