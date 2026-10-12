@@ -21,6 +21,7 @@ public final class BridgeMain {
         } catch (IllegalArgumentException e) {
             System.err.println("[minecraft-mcp-bridge] " + e.getMessage());
             System.err.print(BridgeOptions.USAGE);
+            System.err.print(BridgeCommand.USAGE);
             System.exit(2);
             return;
         }
@@ -31,6 +32,19 @@ public final class BridgeMain {
         if (options.token() != null) childEnv.put("MINECRAFT_MCP_AUTH_TOKEN", options.token());
         BridgeTools tools = new BridgeTools(options, new ClientEndpoint(options.serverJson(), options.port(), options.token()),
                 new ClientProcess(options.launchCommand(), options.launchCwd(), options.launchLog(), childEnv));
+        if (!options.command().isEmpty()) {
+            int code;
+            try {
+                code = BridgeCommand.run(options.command(), tools, protocol);
+            } catch (IllegalArgumentException e) {
+                System.err.println("[minecraft-mcp-bridge] " + e.getMessage());
+                System.err.print(BridgeCommand.USAGE);
+                code = 2;
+            }
+            // no shutdown hook: a client started by "launch" keeps running for the next command
+            System.exit(code);
+            return;
+        }
         StdioMcpServer server = new StdioMcpServer(tools, line -> { synchronized (protocol) { protocol.print(line); protocol.print('\n'); protocol.flush(); } }, version == null ? "dev" : version);
         System.err.println("[minecraft-mcp-bridge] " + (version == null ? "dev" : version) + " serving MCP on stdio; game dir " + options.gameDir()
                 + (options.launchCommand() == null ? ", no launch command" : ", launch command: " + options.launchCommand()));

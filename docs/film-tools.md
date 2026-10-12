@@ -115,6 +115,8 @@ Report:
 
 A typical loop: run with `draft: true`, read the contact sheet, adjust the shots, run again (the world is reused, so
 only the shots run again), then run without `draft` for the final take.
+Outside an MCP session, the [bridge's one-shot commands](bridge.md#one-shot-commands) do the same from a shell against a
+client that stays running: `java -jar minecraft_mcp-bridge.jar --game-dir <dir> call mc.film.run '{"scene": "...", "draft": true}'`.
 
 Why a scene format next to scenarios: a scenario is a test (steps with expectations, pass or fail, run in batches
 from a directory), while a scene describes a take: a world, a camera script and an output. Scenes reuse the scenario
