@@ -84,6 +84,15 @@ class FilmEncoderTest {
     }
 
     @Test
+    void unchangedFramesWhileTheCameraHoldsStillAreNotFrozen() {
+        double[] means = {100, 100, 100, 100};
+        double[] diffs = {Double.NaN, 3, 0.1, 0.1};
+        Map<String, Object> report = FrameAnalyzer.summarize(means, diffs, new boolean[] {false, false, true, false});
+        assertEquals(1, report.get("frozenFrames"));
+        assertEquals(1, report.get("stillFrames"));
+    }
+
+    @Test
     void analyzerIgnoresCutsBetweenShots() {
         double[] means = {100, 100, 100, 100};
         double[] diffs = {Double.NaN, 3, Double.NaN, 3};

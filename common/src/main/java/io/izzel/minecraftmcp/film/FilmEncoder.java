@@ -36,7 +36,7 @@ public final class FilmEncoder {
     private float[] lastLuma;
     private int[] lastThumb;
 
-    private record Frame(byte[] rgba, boolean cut) {}
+    private record Frame(byte[] rgba, boolean cut, boolean still) {}
 
     public FilmEncoder(FrameSink sink, int width, int height, int fps, int contactSheetFrames) {
         this.sink = sink;
@@ -75,7 +75,12 @@ public final class FilmEncoder {
 
     /** Queues a frame (GL-order RGBA). {@code cut} marks the first frame of a new shot. */
     public void submit(byte[] rgba, boolean cut) throws IOException, InterruptedException {
-        put(new Frame(rgba, cut));
+        submit(rgba, cut, false);
+    }
+
+    /** As {@link #submit(byte[], boolean)}; {@code still} says the camera hardly moved since the previous frame. */
+    public void submit(byte[] rgba, boolean cut, boolean still) throws IOException, InterruptedException {
+        put(new Frame(rgba, cut, still));
     }
 
     /** Writes the previous frame again, for real-time recording when rendering is slower than the output rate. */
@@ -110,7 +115,7 @@ public final class FilmEncoder {
                 Frame frame = (Frame) item;
                 int[] thumb = Frames.thumbnail(frame.rgba, width, height, Frames.THUMB_WIDTH, thumbHeight);
                 float[] luma = Frames.luma(thumb, Frames.THUMB_WIDTH, thumbHeight, Frames.LUMA_WIDTH, lumaHeight);
-                analyzer.accept(luma, frame.cut);
+                analyzer.accept(luma, frame.cut, frame.still);
                 sheet.offer(frames, thumb, Frames.THUMB_WIDTH, thumbHeight);
                 sink.write(frame.rgba);
                 frames++;

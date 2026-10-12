@@ -61,6 +61,9 @@ final class NeoForgeFilm {
     private static final NeoForgeFilm INSTANCE = new NeoForgeFilm();
     /** Minecraft treats a frame-rate limit of 260 as unlimited. */
     static final int UNCAPPED = 260;
+    /** Camera steps below these count as holding still. */
+    static final double STILL_BLOCKS = 0.1;
+    static final double STILL_DEGREES = 0.5;
 
     private final Minecraft mc = Minecraft.getInstance();
     private volatile Take take;
@@ -391,7 +394,7 @@ final class NeoForgeFilm {
         }
         if (s.frame == 0) s.startNanos = now;
         try {
-            capture(t.encoder, s.cut);
+            capture(t.encoder, s.cut, still(s));
         } catch (Exception e) {
             t.shot = null;
             s.done.completeExceptionally(e);
@@ -406,6 +409,14 @@ final class NeoForgeFilm {
             t.shot = null;
             s.done.complete(null);
         }
+    }
+
+    /** Whether the camera hardly moved since the previous frame (eased shot ends, holds), so an unchanged picture is expected. */
+    private static boolean still(ShotRun s) {
+        if (s.previous == null || s.pose == null) return false;
+        double moved = CameraMath.distance(s.previous.position(), s.pose.position());
+        double turned = Math.hypot(CameraMath.wrapDegrees(s.pose.yaw() - s.previous.yaw()), s.pose.pitch() - s.previous.pitch());
+        return moved < STILL_BLOCKS && turned < STILL_DEGREES;
     }
 
     private void track(ShotRun s) {
@@ -483,7 +494,7 @@ final class NeoForgeFilm {
     }
 
     /** Copies the main framebuffer (bottom row first, RGBA) into a pooled encoder buffer and queues it. */
-    void capture(FilmEncoder encoder, boolean cut) throws Exception {
+    void capture(FilmEncoder encoder, boolean cut, boolean still) throws Exception {
         RenderTarget target = mc.getMainRenderTarget();
         int width = target.width, height = target.height, bytes = width * height * 4;
         if (readback == null || readback.capacity() < bytes) {
@@ -506,7 +517,7 @@ final class NeoForgeFilm {
             readback.get(0, frame, 0, bytes);
             Frames.resize(frame, width, height, encoder.width(), encoder.height(), buffer);
         }
-        encoder.submit(buffer, cut);
+        encoder.submit(buffer, cut, still);
     }
 
     // ---- real-time recording ----
@@ -634,7 +645,7 @@ final class NeoForgeFilm {
         long due = elapsed * r.settings.fps() / 1_000_000_000L + 1;
         try {
             if (r.written < due) {
-                capture(r.encoder, false);
+                capture(r.encoder, false, false);
                 r.written++;
                 r.captured++;
                 while (r.written < due) {

@@ -21,10 +21,19 @@ public final class FrameAnalyzer {
 
     private final List<Double> means = new ArrayList<>();
     private final List<Double> diffs = new ArrayList<>();
+    private final List<Boolean> stills = new ArrayList<>();
     private float[] previous;
 
-    /** Adds the next frame's luma grid. {@code cut} marks the first frame of a new shot, which is not compared with the frame before it. */
     public void accept(float[] luma, boolean cut) {
+        accept(luma, cut, false);
+    }
+
+    /**
+     * Adds the next frame's luma grid. {@code cut} marks the first frame of a new shot, which is not compared with the
+     * frame before it; {@code still} marks a frame where the camera hardly moved, so an unchanged picture is expected.
+     */
+    public void accept(float[] luma, boolean cut, boolean still) {
+        stills.add(still);
         double sum = 0;
         for (float v : luma) sum += v;
         means.add(sum / luma.length);
@@ -39,25 +48,35 @@ public final class FrameAnalyzer {
     }
 
     public Map<String, Object> report() {
-        return summarize(means.stream().mapToDouble(Double::doubleValue).toArray(), diffs.stream().mapToDouble(Double::doubleValue).toArray());
+        boolean[] still = new boolean[stills.size()];
+        for (int i = 0; i < still.length; i++) still[i] = stills.get(i);
+        return summarize(means.stream().mapToDouble(Double::doubleValue).toArray(), diffs.stream().mapToDouble(Double::doubleValue).toArray(), still);
     }
 
     /** Quality figures from per-frame mean luma and per-frame change ({@code NaN} where a frame has nothing to compare with). */
     public static Map<String, Object> summarize(double[] means, double[] diffs) {
+        return summarize(means, diffs, new boolean[diffs.length]);
+    }
+
+    /** As {@link #summarize(double[], double[])}; frames marked {@code still} that do not change count as {@code stillFrames}, not frozen. */
+    public static Map<String, Object> summarize(double[] means, double[] diffs, boolean[] still) {
         int frames = means.length;
         int black = 0;
         List<Integer> blackAt = new ArrayList<>();
         for (int i = 0; i < frames; i++) {
             if (means[i] < BLACK_THRESHOLD) { black++; if (blackAt.size() < 10) blackAt.add(i); }
         }
-        int frozen = 0, run = 0, longestRun = 0, compared = 0;
+        int frozen = 0, stillFrames = 0, run = 0, longestRun = 0, compared = 0;
         List<Integer> frozenAt = new ArrayList<>();
         double motionSum = 0;
         for (int i = 0; i < diffs.length; i++) {
             if (Double.isNaN(diffs[i])) { run = 0; continue; }
             compared++;
             motionSum += diffs[i];
-            if (diffs[i] < FROZEN_THRESHOLD) {
+            if (diffs[i] < FROZEN_THRESHOLD && still[i]) {
+                stillFrames++;
+                run = 0;
+            } else if (diffs[i] < FROZEN_THRESHOLD) {
                 frozen++;
                 run++;
                 longestRun = Math.max(longestRun, run);
@@ -94,6 +113,7 @@ public final class FrameAnalyzer {
         report.put("frozenFrames", frozen);
         report.put("longestFrozenRun", longestRun);
         if (!frozenAt.isEmpty()) report.put("frozenFrameIndexes", frozenAt);
+        if (stillFrames > 0) report.put("stillFrames", stillFrames);
         report.put("meanMotion", CameraPose.round(meanMotion, 3));
         report.put("jitter", CameraPose.round(jitter, 3));
         report.put("motionSpikes", spikes);
