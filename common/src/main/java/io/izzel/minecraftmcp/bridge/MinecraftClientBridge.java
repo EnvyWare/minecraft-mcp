@@ -262,6 +262,13 @@ public interface MinecraftClientBridge {
     default Map<String, Object> takeScreenshot(Map<String, Object> args) {
         throw new UnsupportedOperationException("Screenshot capture is not implemented by " + loader());
     }
+    /** Plays camera shots on the render thread and encodes them to a video; blocks until done. See docs/film-tools.md. */
+    default Map<String, Object> playCamera(Map<String, Object> args) throws Exception {
+        throw new UnsupportedOperationException("The camera player is not implemented by " + loader());
+    }
+    default Map<String, Object> stopCamera() {
+        throw new UnsupportedOperationException("The camera player is not implemented by " + loader());
+    }
     default boolean waitUntil(String condition, long timeoutMs) {
         String normalized = condition == null ? "" : condition.trim();
         ConditionExpression expression = ConditionParser.parse(normalized);

@@ -78,6 +78,7 @@ public final class NeoForgeMinecraftMcpMod {
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         if (FMLLoader.getDist().isClient()) {
             NeoForgeBackground.register(modBus);
+            NeoForgeFilm.register();
             try {
                 server = MinecraftMcpBootstrap.start(new NeoForgeBridge());
                 System.out.println("[Minecraft MCP] NeoForge MCP server started on port " + server.port());
@@ -144,6 +145,8 @@ public final class NeoForgeMinecraftMcpMod {
             KeyMapping.set(InputConstants.getKey(KeyAliases.normalize(key)), down);
         }
         public void shutdownClient() { mc.stop(); }
+        public Map<String, Object> playCamera(Map<String, Object> args) throws Exception { return NeoForgeFilm.get().play(args); }
+        public Map<String, Object> stopCamera() { return NeoForgeFilm.get().stop(); }
 
         public Map<String, Object> takeScreenshot(Map<String, Object> args) {
             String requested = String.valueOf(args.getOrDefault("name", ""));

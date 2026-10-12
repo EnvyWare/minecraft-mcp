@@ -5,8 +5,11 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "AbstractSelectionListAccessor",
+    "CameraMixin",
     "GameRendererMixin",
     "InputConstantsMixin",
+    "LevelRendererAccessor",
+    "SectionOcclusionGraphAccessor",
     "WindowMixin"
   ],
   "injectors": {
