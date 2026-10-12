@@ -269,6 +269,14 @@ public interface MinecraftClientBridge {
     default Map<String, Object> stopCamera() {
         throw new UnsupportedOperationException("The camera player is not implemented by " + loader());
     }
+    /** HUD visibility: {@code hidden} is the F1 state ({@code options.hideGui}); also reports the debug screen. */
+    default Map<String, Object> hudState() {
+        throw new UnsupportedOperationException("HUD control is not implemented by " + loader());
+    }
+    /** Hides or shows the HUD like F1, without touching options.txt. */
+    default Map<String, Object> setHud(boolean hidden) {
+        throw new UnsupportedOperationException("HUD control is not implemented by " + loader());
+    }
     /** Starts recording what the client renders, in real time at a fixed frame rate. See docs/film-tools.md. */
     default Map<String, Object> startRecording(Map<String, Object> args) throws Exception {
         throw new UnsupportedOperationException("Recording is not implemented by " + loader());

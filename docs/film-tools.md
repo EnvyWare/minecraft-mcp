@@ -6,6 +6,7 @@ inside the client, so a whole shot is one tool call instead of several round tri
 - `mc.camera.play`: play keyframed camera shots and encode them to an mp4 at a fixed frame rate.
 - `mc.camera.stop`: abort a running `mc.camera.play`.
 - `mc.record.start`, `mc.record.stop`, `mc.record.state`: record what the client renders in real time, e.g. a battle.
+- `mc.hud.state`, `mc.hud.set`: hide or show the HUD (F1) directly.
 
 Supported on NeoForge. Fabric reports the tools as not implemented. Works in [background mode](headless.md#background-mode-windowsmacoslinux-desktop):
 frames are read from the game's own framebuffer, so the window can stay hidden.
@@ -189,3 +190,19 @@ sheet) with `timing.renderedFps`, `capturedFrames` and `duplicatedFrames`. `mc.r
 `{"recording": true, "seconds": ..., "frames": ..., "duplicatedFrames": ...}` or `{"recording": false}`.
 
 Only one recording or camera shot runs at a time.
+
+## `mc.hud.state`, `mc.hud.set`
+
+```json
+{"hidden": true}
+```
+
+`mc.hud.set` sets the F1 state (`options.hideGui`) directly, which is reliable in background mode where a simulated F1
+press is not; `{"visible": true}` also works. Nothing is written to `options.txt`. Both tools return:
+
+```json
+{"hidden": true, "debugScreen": false, "screen": null}
+```
+
+`mc.camera.play` and `mc.record.start` hide the HUD for their duration by default (`hideHud`) and restore it after.
+Mods that draw overlays outside the vanilla HUD layers may ignore F1; hide those with the mod's own settings.

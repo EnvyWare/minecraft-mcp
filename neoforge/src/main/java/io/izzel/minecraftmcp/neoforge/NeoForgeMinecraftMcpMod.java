@@ -147,6 +147,17 @@ public final class NeoForgeMinecraftMcpMod {
         public void shutdownClient() { mc.stop(); }
         public Map<String, Object> playCamera(Map<String, Object> args) throws Exception { return NeoForgeFilm.get().play(args); }
         public Map<String, Object> stopCamera() { return NeoForgeFilm.get().stop(); }
+        public Map<String, Object> hudState() {
+            java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+            state.put("hidden", mc.options.hideGui);
+            state.put("debugScreen", mc.getDebugOverlay().showDebugScreen());
+            state.put("screen", mc.screen == null ? null : mc.screen.getClass().getName());
+            return state;
+        }
+        public Map<String, Object> setHud(boolean hidden) {
+            mc.options.hideGui = hidden;
+            return hudState();
+        }
         public Map<String, Object> startRecording(Map<String, Object> args) throws Exception { return NeoForgeFilm.get().recordStart(args); }
         public Map<String, Object> stopRecording() throws Exception { return NeoForgeFilm.get().recordStop(); }
         public Map<String, Object> recordingState() { return NeoForgeFilm.get().recordState(); }
