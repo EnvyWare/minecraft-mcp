@@ -495,7 +495,8 @@ public final class NeoForgeMinecraftMcpMod {
             String levelName = name == null || name.isBlank() ? "minecraft_mcp_test_world" : name;
             LevelSettings settings = new LevelSettings(levelName, GameType.CREATIVE, false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
             long seed = options.get("seed") instanceof Number n ? n.longValue() : 0L;
-            WorldOptions worldOptions = new WorldOptions(seed, false, false);
+            boolean structures = Boolean.parseBoolean(String.valueOf(options.getOrDefault("structures", false)));
+            WorldOptions worldOptions = new WorldOptions(seed, structures, false);
             java.util.function.Function<net.minecraft.core.RegistryAccess, net.minecraft.world.level.levelgen.WorldDimensions> dimensions = registryAccess -> {
                 String preset = String.valueOf(options.getOrDefault("preset", options.getOrDefault("generator", "normal"))).trim().toLowerCase(java.util.Locale.ROOT);
                 if (preset.equals("flat") || preset.equals("superflat")) {
@@ -517,8 +518,10 @@ public final class NeoForgeMinecraftMcpMod {
         }
         public Map<String, Object> worldSnapshot() {
             if (mc.level == null) return Map.of("inWorld", false);
+            var singleplayer = mc.getSingleplayerServer();
             return Map.of(
                 "inWorld", true,
+                "levelName", singleplayer == null ? "" : singleplayer.getWorldData().getLevelName(),
                 "dimension", mc.level.dimension().location().toString(),
                 "gameTime", mc.level.getGameTime(),
                 "difficulty", mc.level.getDifficulty().getKey(),

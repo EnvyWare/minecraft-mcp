@@ -15,7 +15,9 @@ For MCP clients that only speak stdio, or that should outlive client restarts, u
 
 Implemented tools:
 
-- `mc.world.join` supports normal world creation by default and accepts `preset`/`generator: "flat"` or `"superflat"` for superflat test worlds.
+- `mc.world.join` supports normal world creation by default and accepts `preset`/`generator: "flat"` or `"superflat"` for superflat test worlds. New worlds are created without structures (villages and so on) unless `structures: true` is passed (NeoForge). `seed` sets the seed.
+
+- `mc.world.snapshot` reports `levelName`, the singleplayer world's name (empty on a server), on NeoForge.
 
 - `mc.client.state` returns both `inWorld` and `rawInWorld`. `rawInWorld` means the underlying client level/player exists; `inWorld` means the client is in a playable world state with no loading/GUI screen blocking normal controls.
 
